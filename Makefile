@@ -12,7 +12,7 @@ SPECIALFLAGS= --exceptions -D__USE_PDFS_RESBOS__ -D__USE_PDFS__
 CFLAGS = $(SPECIALFLAGS) -I- -I../ -I.
 LFLAGS = $(SPECIALFLAGS) -L../../lib/$(SRT_SUBDIR)/
 
-RCXX=$(CFLAGS) $(ROOTCFLAGS)
+RCXX=$(CFLAGS) $(ROOTCFLAGS) -ggdb
 
 #CC = KCC -n32 --exceptions --thread_safe -O $(OPTCOMP)
 #CC = KCC +K0 --exceptions --thread_safe -O $(OPTCOMP)
