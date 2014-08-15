@@ -1,0 +1,500 @@
+? .PMCSEvent.hpp.swp
+? .PMCSOutputTree.cpp.swp
+? .WAnalysis.cpp.swp
+? .parameters.rc.swp
+? .pdfreweight_withTTree.patch.swp
+? G__auto18201LinkDef.h
+? HR_MC_withHV_NEW_morezpt_Run3.root
+? PMCSTH1_Dict.cxx
+? PMCSTH1_Dict.h
+? SAMExpander_Dict.cxx
+? SAMExpander_Dict.h
+? TH2rclsa_Dict.cxx
+? TH2rclsa_Dict.h
+? binary_library_data_Run2b3_all.root
+? core.17418
+? core.8869
+? epmcs.creator.user
+? mblibtest_default_Run3_nozeroset_newmax_PHICORR_setpow0.30_small_smaller_zerofrac0.08_v2test11_shiftorig071.root
+? pdfreweight_withTTree.patch
+? pdfreweight_withoutTTree_triggerNoWork.patch
+? pmcsana_Dict.cxx
+? pmcsana_Dict.h
+? result_wen.root
+? reswenulocal_pmcscentral_2010000.root
+? run_pmcs
+? test.list
+Index: EMSmear.cpp
+===================================================================
+RCS file: /cvsroot/d0cvs/wz_epmcs/src/EMSmear.cpp,v
+retrieving revision 1.118
+diff -r1.118 EMSmear.cpp
+3098a3099,3102
+>     int ptbin  ; //  = wz_utils::getbin(eleak_model5_ptbins, part.getTruePt());
+>     int etabin ; //  = wz_utils::getbin(eleak_model5_etabins, TMath::Abs(part.getTrueEta()));
+>     int setbin ; //  = wz_utils::getbin(eleak_model5_setbins, set);
+>     int Xbin   ; //  = wz_utils::getbin(eleak_model5_Xbins, part.FSRxInCone());
+3100,3206c3104,3210
+<     case 1:
+<       EnergyLeakage = _ENERGY_OUTCONE_Elec_CC;
+<       break;
+<     case 2:
+<       EnergyLeakage = _ENERGY_OUTCONE_Elec_CC/sin(theta);
+<       break;
+<     case 3:
+<       LeakBin=(int)(eta_raw/0.2)+7;
+<       if (LeakBin<0) LeakBin=0;
+<       if (LeakBin>13) LeakBin=13;
+<       double r;
+<       if (extrndm) {
+< 	r = extrndm[3];
+<       } else {
+< 	r = gRandom->Rndm();
+<       }
+<       if (r<_ENERGY_OUTCONE_JanModel_Elec_CC[LeakBin]->GetBinContent(0)) {
+< 	EnergyLeakage=0;
+<       } else {
+< 	if (!extrndm)
+< 	  EnergyLeakage=_ENERGY_OUTCONE_JanModel_Elec_CC[LeakBin]->GetRandom()*part.getTrueE();
+< 	else{
+< 	  EnergyLeakage = (((PMCSTH1* )(_ENERGY_OUTCONE_JanModel_Elec_CC[LeakBin]) ))->GetRandom(extrndm[1])*part.getTrueE() ;
+< 	}
+<       }
+<       EnergyLeakage*=_ENERGY_OUTCONE_JanModel_Elec_Fudge_CC;
+<       break;
+<     case 4:
+<       LeakBin=(int)(eta_raw/0.2)+7;
+<       if (LeakBin<0) LeakBin=0;
+<       if (LeakBin>13) LeakBin=13;
+<       if (extrndm) {
+< 	r = extrndm[3];
+<       } else {
+< 	r = gRandom->Rndm();
+<       }
+<       //
+<       TH1D* theLeakHist;
+<       double theFudge;
+<       if (part.FSRxInCone()>0) {
+< 	theLeakHist=_ENERGY_OUTCONE_JanModel_Elec_CCfsr[LeakBin];
+< 	theFudge=_ENERGY_OUTCONE_JanModel_Elec_Fudge_CCfsr;
+<       } else {
+< 	theLeakHist=_ENERGY_OUTCONE_JanModel_Elec_CC[LeakBin];
+< 	theFudge=_ENERGY_OUTCONE_JanModel_Elec_Fudge_CC;
+<       }
+<       //
+<       if (r<theLeakHist->GetBinContent(0)) {
+< 	EnergyLeakage=0;
+<       } else {
+< 	if (!extrndm)
+< 	  EnergyLeakage=theLeakHist->GetRandom()*part.getTrueE();
+< 	else{
+< 	  EnergyLeakage = (((PMCSTH1* )(theLeakHist) ))->GetRandom(extrndm[1])*part.getTrueE() ;
+< 	}
+<       }
+<       EnergyLeakage*=theFudge;
+<       break;
+<     case 5:
+<       int ptbin = wz_utils::getbin(eleak_model5_ptbins, part.getTruePt());
+<       int etabin = wz_utils::getbin(eleak_model5_etabins, TMath::Abs(part.getTrueEta()));
+<       int setbin = wz_utils::getbin(eleak_model5_setbins, set);
+<       int Xbin = wz_utils::getbin(eleak_model5_Xbins, part.FSRxInCone());
+< 
+<       Double_t prob, rndm;
+<       if (part.FSRxInCone() > 0)
+< 	if (eleak_model5_interpolate)
+< 	  prob = wz_utils::interpolate2d(eleak_model5_leakageProbabilityFSR[ptbin], set, TMath::Abs(part.getTrueEta()));
+< 	else 
+< 	  prob = eleak_model5_leakageProbabilityFSR[ptbin]->GetBinContent(eleak_model5_leakageProbabilityFSR[ptbin]->FindBin(set, TMath::Abs(part.getTrueEta())));
+<       else 
+< 	if (eleak_model5_interpolate)
+< 	  prob = wz_utils::interpolate2d(eleak_model5_leakageProbability[ptbin], set, TMath::Abs(part.getTrueEta()));
+< 	else 
+< 	  prob = eleak_model5_leakageProbability[ptbin]->GetBinContent(eleak_model5_leakageProbability[ptbin]->FindBin(set, TMath::Abs(part.getTrueEta())));
+<       if (extrndm) {
+<         rndm = extrndm[3];
+<       } else {
+<         rndm = gRandom->Rndm();
+<       }
+<       EnergyLeakage = 0;
+<       if (rndm < prob) {
+< 	if (part.FSRxInCone() > 0) {
+< 	  if (eleak_model5_leakageDistributionFSR[ptbin][etabin][setbin][Xbin]) {
+< 	    if (!extrndm) {
+< 	      EnergyLeakage = eleak_model5_FSRFudge*eleak_model5_leakageDistributionFSR[ptbin][etabin][setbin][Xbin]->GetRandom()*part.getTrueE();
+< 	    } else {
+< 	      EnergyLeakage = eleak_model5_FSRFudge*(((PMCSTH1* )(eleak_model5_leakageDistributionFSR[ptbin][etabin][setbin][Xbin]) ))->GetRandom(extrndm[1])*part.getTrueE();
+< 	    }
+< 	  } else {
+< 	    EnergyLeakage = 0.;
+< 	  }
+< 	} else {
+< 	  if (eleak_model5_leakageDistribution[ptbin][etabin][setbin]) {
+< 	    if (!extrndm) {
+< 	      EnergyLeakage = eleak_model5_vetoFudge*eleak_model5_leakageDistribution[ptbin][etabin][setbin]->GetRandom()*part.getTrueE();
+< 	    } else {
+< 	      EnergyLeakage = eleak_model5_vetoFudge*(((PMCSTH1* )(eleak_model5_leakageDistribution[ptbin][etabin][setbin]) ))->GetRandom(extrndm[1])*part.getTrueE();
+< 	    }
+< 	  } else {
+< 	    EnergyLeakage = 0.;
+< 	  }
+< 	}
+<       }
+<       break;
+<     default:
+<       assert(0);
+---
+>         case 1:
+>             EnergyLeakage = _ENERGY_OUTCONE_Elec_CC;
+>             break;
+>         case 2:
+>             EnergyLeakage = _ENERGY_OUTCONE_Elec_CC/sin(theta);
+>             break;
+>         case 3:
+>             LeakBin=(int)(eta_raw/0.2)+7;
+>             if (LeakBin<0) LeakBin=0;
+>             if (LeakBin>13) LeakBin=13;
+>             double r;
+>             if (extrndm) {
+>                 r = extrndm[3];
+>             } else {
+>                 r = gRandom->Rndm();
+>             }
+>             if (r<_ENERGY_OUTCONE_JanModel_Elec_CC[LeakBin]->GetBinContent(0)) {
+>                 EnergyLeakage=0;
+>             } else {
+>                 if (!extrndm)
+>                     EnergyLeakage=_ENERGY_OUTCONE_JanModel_Elec_CC[LeakBin]->GetRandom()*part.getTrueE();
+>                 else{
+>                     EnergyLeakage = (((PMCSTH1* )(_ENERGY_OUTCONE_JanModel_Elec_CC[LeakBin]) ))->GetRandom(extrndm[1])*part.getTrueE() ;
+>                 }
+>             }
+>             EnergyLeakage*=_ENERGY_OUTCONE_JanModel_Elec_Fudge_CC;
+>             break;
+>         case 4:
+>             LeakBin=(int)(eta_raw/0.2)+7;
+>             if (LeakBin<0) LeakBin=0;
+>             if (LeakBin>13) LeakBin=13;
+>             if (extrndm) {
+>                 r = extrndm[3];
+>             } else {
+>                 r = gRandom->Rndm();
+>             }
+>             //
+>             TH1D* theLeakHist;
+>             double theFudge;
+>             if (part.FSRxInCone()>0) {
+>                 theLeakHist=_ENERGY_OUTCONE_JanModel_Elec_CCfsr[LeakBin];
+>                 theFudge=_ENERGY_OUTCONE_JanModel_Elec_Fudge_CCfsr;
+>             } else {
+>                 theLeakHist=_ENERGY_OUTCONE_JanModel_Elec_CC[LeakBin];
+>                 theFudge=_ENERGY_OUTCONE_JanModel_Elec_Fudge_CC;
+>             }
+>             //
+>             if (r<theLeakHist->GetBinContent(0)) {
+>                 EnergyLeakage=0;
+>             } else {
+>                 if (!extrndm)
+>                     EnergyLeakage=theLeakHist->GetRandom()*part.getTrueE();
+>                 else{
+>                     EnergyLeakage = (((PMCSTH1* )(theLeakHist) ))->GetRandom(extrndm[1])*part.getTrueE() ;
+>                 }
+>             }
+>             EnergyLeakage*=theFudge;
+>             break;
+>         case 5:
+>             ptbin = wz_utils::getbin(eleak_model5_ptbins, part.getTruePt());
+>             etabin = wz_utils::getbin(eleak_model5_etabins, TMath::Abs(part.getTrueEta()));
+>             setbin = wz_utils::getbin(eleak_model5_setbins, set);
+>             Xbin = wz_utils::getbin(eleak_model5_Xbins, part.FSRxInCone());
+> 
+>             Double_t prob, rndm;
+>             if (part.FSRxInCone() > 0)
+>                 if (eleak_model5_interpolate)
+>                     prob = wz_utils::interpolate2d(eleak_model5_leakageProbabilityFSR[ptbin], set, TMath::Abs(part.getTrueEta()));
+>                 else 
+>                     prob = eleak_model5_leakageProbabilityFSR[ptbin]->GetBinContent(eleak_model5_leakageProbabilityFSR[ptbin]->FindBin(set, TMath::Abs(part.getTrueEta())));
+>             else 
+>                 if (eleak_model5_interpolate)
+>                     prob = wz_utils::interpolate2d(eleak_model5_leakageProbability[ptbin], set, TMath::Abs(part.getTrueEta()));
+>                 else 
+>                     prob = eleak_model5_leakageProbability[ptbin]->GetBinContent(eleak_model5_leakageProbability[ptbin]->FindBin(set, TMath::Abs(part.getTrueEta())));
+>             if (extrndm) {
+>                 rndm = extrndm[3];
+>             } else {
+>                 rndm = gRandom->Rndm();
+>             }
+>             EnergyLeakage = 0;
+>             if (rndm < prob) {
+>                 if (part.FSRxInCone() > 0) {
+>                     if (eleak_model5_leakageDistributionFSR[ptbin][etabin][setbin][Xbin]) {
+>                         if (!extrndm) {
+>                             EnergyLeakage = eleak_model5_FSRFudge*eleak_model5_leakageDistributionFSR[ptbin][etabin][setbin][Xbin]->GetRandom()*part.getTrueE();
+>                         } else {
+>                             EnergyLeakage = eleak_model5_FSRFudge*(((PMCSTH1* )(eleak_model5_leakageDistributionFSR[ptbin][etabin][setbin][Xbin]) ))->GetRandom(extrndm[1])*part.getTrueE();
+>                         }
+>                     } else {
+>                         EnergyLeakage = 0.;
+>                     }
+>                 } else {
+>                     if (eleak_model5_leakageDistribution[ptbin][etabin][setbin]) {
+>                         if (!extrndm) {
+>                             EnergyLeakage = eleak_model5_vetoFudge*eleak_model5_leakageDistribution[ptbin][etabin][setbin]->GetRandom()*part.getTrueE();
+>                         } else {
+>                             EnergyLeakage = eleak_model5_vetoFudge*(((PMCSTH1* )(eleak_model5_leakageDistribution[ptbin][etabin][setbin]) ))->GetRandom(extrndm[1])*part.getTrueE();
+>                         }
+>                     } else {
+>                         EnergyLeakage = 0.;
+>                     }
+>                 }
+>             }
+>             break;
+>         default:
+>             assert(0);
+Index: EMSmear.hpp
+===================================================================
+RCS file: /cvsroot/d0cvs/wz_epmcs/src/EMSmear.hpp,v
+retrieving revision 1.76
+diff -r1.76 EMSmear.hpp
+518,520c518,520
+<   bool EMSmear::SetdUParaEffParsModel6UseHists(PParameterReader& parm);
+<   double EMSmear::Get_dUParaEff6_UseHists(double dupara, double elecpt);
+<   void EMSmear::Get_dUParaEff6_UseHistsInit(double elecpt, double eta, double upara, double set, double uperp);
+---
+>   bool   SetdUParaEffParsModel6UseHists(PParameterReader& parm);
+>   double Get_dUParaEff6_UseHists(double dupara, double elecpt);
+>   void   Get_dUParaEff6_UseHistsInit(double elecpt, double eta, double upara, double set, double uperp);
+Index: Makefile
+===================================================================
+RCS file: /cvsroot/d0cvs/wz_epmcs/src/Makefile,v
+retrieving revision 1.38
+diff -r1.38 Makefile
+4,5c4,5
+< ROOTLIBS = `root-config --libs` -lMinuit
+< OPTCOMP = `root-config --cflags` 
+---
+> ROOTLIBS = $(shell root-config --libs) -lMinuit
+> OPTCOMP = $(shell root-config --cflags)
+15c15
+< # PDFMACRO= -D__USE_PDFS_RESBOS__
+---
+> PDFMACRO= -D__USE_PDFS_RESBOS__
+20c20,21
+< CFLAGS = -I$(LHAPDF_DIR)/include/ -I- -I. $(PDFMACRO) $(ZBLIBFLAG)
+---
+> #CFLAGS = -I$(LHAPDF_DIR)/include/ -I- -I. $(PDFMACRO) $(ZBLIBFLAG)
+> CFLAGS = -I$(LHAPDF_DIR)/include/ -iquote -I. $(PDFMACRO) $(ZBLIBFLAG)
+43,44c44,45
+< CC = ${GCC_DIR}/bin/g++ ${DBG} $(RCXX) $(OPTCOMP) 
+< F77 = ${GCC_DIR}/bin/g77
+---
+> CC =g++ ${DBG} ${RCXX} ${OPTCOMP} # ${GCC_DIR}/bin/g++ ${DBG} $(RCXX) $(OPTCOMP) 
+> F77 =g77 # ${GCC_DIR}/bin/g81
+51,52c52,53
+< run_pmcs: run_pmcs.o pmcsana.o pmcsana_Dict.o hist_files.o PMCSTH1.o PMCSTH1_Dict.o cal_regions.o PParameterReader.o GlobalParameters.o PMCSVtx.o PMCSParticle.o PMCSEMObj.o PMCSRecoil.o PMCSMet.o EMSmear.o EfficiencySmear.o SETefficiencySmear_base.o SETefficiencySmear.o SETefficiencySmear_LumiDispatch.o ZRecoilMethod_Util.o RecoilSmear.o  PMCSZCand.o PMCSWCand.o BlindingManagerPMCS.o ZAnalysis.o WAnalysis.o PMCSEvent.o PMCSMuon.o MuSmear.o JPsiMuAnalysis.o ZMuAnalysis.o ZNuNuAnalysis.o PMCSZMuCand.o PMCSJPsiMuCand.o BeamWeight.o TF2jan.o ZBLibraryClass.o MBLibraryClass.o SAMExpander.o SAMExpander_Dict.o TH2rclsa_Dict.o TH2rclsa.o HardRecoil_Manager.o
+< 	$(CC)  -B${LINKTIME_DIR}/usr/X11R6/lib -B${RUNTIME_DIR}/usr/lib -B${LINKTIME_DIR}/lib -B${LINKTIME_DIR}/usr/lib -Wl,-rpath-link -Wl,${LINKTIME_DIR}/usr/X11R6/lib -Wl,-rpath-link -Wl,${RUNTIME_DIR}/usr/lib -Wl,-rpath-link -Wl,${LINKTIME_DIR}/lib -Wl,-rpath-link -Wl,${LINKTIME_DIR}/usr/lib run_pmcs.o pmcsana.o pmcsana_Dict.o hist_files.o PParameterReader.o GlobalParameters.o PMCSVtx.o PMCSParticle.o PMCSEMObj.o PMCSRecoil.o PMCSMet.o EMSmear.o EfficiencySmear.o  SETefficiencySmear_base.o SETefficiencySmear.o SETefficiencySmear_LumiDispatch.o ZRecoilMethod_Util.o RecoilSmear.o PMCSZCand.o PMCSWCand.o BlindingManagerPMCS.o ZAnalysis.o WAnalysis.o PMCSEvent.o PMCSMuon.o MuSmear.o JPsiMuAnalysis.o ZMuAnalysis.o ZNuNuAnalysis.o PMCSZMuCand.o PMCSJPsiMuCand.o BeamWeight.o TF2jan.o PMCSTH1.o  PMCSTH1_Dict.o ZBLibraryClass.o MBLibraryClass.o SAMExpander.o SAMExpander_Dict.o TH2rclsa.o TH2rclsa_Dict.o HardRecoil_Manager.o $(F77OBJS) ${CALOBJECTS} $(ROOTLIBS) $(LHAPDFLIB) $(SAMAPILIBS) -l g2c -o run_pmcs
+---
+> run_pmcs: run_pmcs.o pmcsana.o pmcsana_Dict.o hist_files.o PMCSTH1.o PMCSTH1_Dict.o cal_regions.o PParameterReader.o GlobalParameters.o PMCSVtx.o PMCSParticle.o PMCSEMObj.o PMCSRecoil.o PMCSOutputTree.o PMCSMet.o EMSmear.o EfficiencySmear.o SETefficiencySmear_base.o SETefficiencySmear.o SETefficiencySmear_LumiDispatch.o ZRecoilMethod_Util.o RecoilSmear.o  PMCSZCand.o PMCSWCand.o BlindingManagerPMCS.o ZAnalysis.o WAnalysis.o PMCSEvent.o PMCSMuon.o MuSmear.o JPsiMuAnalysis.o ZMuAnalysis.o ZNuNuAnalysis.o PMCSZMuCand.o PMCSJPsiMuCand.o BeamWeight.o TF2jan.o ZBLibraryClass.o MBLibraryClass.o SAMExpander.o SAMExpander_Dict.o TH2rclsa_Dict.o TH2rclsa.o HardRecoil_Manager.o
+> 	$(CC)  -B${LINKTIME_DIR}/usr/X11R6/lib -B${RUNTIME_DIR}/usr/lib -B${LINKTIME_DIR}/lib -B${LINKTIME_DIR}/usr/lib -Wl,-rpath-link -Wl,${LINKTIME_DIR}/usr/X11R6/lib -Wl,-rpath-link -Wl,${RUNTIME_DIR}/usr/lib -Wl,-rpath-link -Wl,${LINKTIME_DIR}/lib -Wl,-rpath-link -Wl,${LINKTIME_DIR}/usr/lib run_pmcs.o pmcsana.o pmcsana_Dict.o hist_files.o PParameterReader.o GlobalParameters.o PMCSVtx.o PMCSParticle.o PMCSEMObj.o PMCSRecoil.o PMCSOutputTree.o PMCSMet.o EMSmear.o EfficiencySmear.o  SETefficiencySmear_base.o SETefficiencySmear.o SETefficiencySmear_LumiDispatch.o ZRecoilMethod_Util.o RecoilSmear.o PMCSZCand.o PMCSWCand.o BlindingManagerPMCS.o ZAnalysis.o WAnalysis.o PMCSEvent.o PMCSMuon.o MuSmear.o JPsiMuAnalysis.o ZMuAnalysis.o ZNuNuAnalysis.o PMCSZMuCand.o PMCSJPsiMuCand.o BeamWeight.o TF2jan.o PMCSTH1.o  PMCSTH1_Dict.o ZBLibraryClass.o MBLibraryClass.o SAMExpander.o SAMExpander_Dict.o TH2rclsa.o TH2rclsa_Dict.o HardRecoil_Manager.o $(F77OBJS) ${CALOBJECTS} $(ROOTLIBS) $(LHAPDFLIB) $(SAMAPILIBS) -l f2c -o run_pmcs
+102a104,106
+> PMCSOutputTree.o: PMCSOutputTree.cpp PMCSOutputTree.hpp
+> 	$(CC) -c PMCSOutputTree.cpp -o PMCSOutputTree.o 
+> 
+Index: PMCSEvent.cpp
+===================================================================
+RCS file: /cvsroot/d0cvs/wz_epmcs/src/PMCSEvent.cpp,v
+retrieving revision 1.11
+diff -r1.11 PMCSEvent.cpp
+24c24
+<   for( int i = 0 ; i < 45 ; i++ )
+---
+>   for( int i = 0 ; i < PMCSEvent::nPDF ; i++ )
+25a26
+>   _truth_evtn=-1;
+Index: PMCSEvent.hpp
+===================================================================
+RCS file: /cvsroot/d0cvs/wz_epmcs/src/PMCSEvent.hpp,v
+retrieving revision 1.11
+diff -r1.11 PMCSEvent.hpp
+41c41,45
+<   double pdfreweights[45];
+---
+>   static const int nPDF = 50;
+>   double pdfreweights[nPDF+1];
+> 
+>   // truth event number
+>   Int_t _truth_evtn;
+66a71,72
+> 
+> 
+68a75
+> 
+Index: WAnalysis.cpp
+===================================================================
+RCS file: /cvsroot/d0cvs/wz_epmcs/src/WAnalysis.cpp,v
+retrieving revision 1.141
+diff -r1.141 WAnalysis.cpp
+104c104
+<       _histos.clone("hWcandSingVariable_PDF_CC", 45);
+---
+>       _histos.clone("hWcandSingVariable_PDF_CC", PMCSEvent::nPDF);
+106c106
+<       if(_doSVgeneratorstudy) _histos.clone("hWcandSingVariable_Gen_PDF_CC", 45);
+---
+>       if(_doSVgeneratorstudy) _histos.clone("hWcandSingVariable_Gen_PDF_CC", PMCSEvent::nPDF);
+123,128c123,128
+<     _histos.clone("hWcandMt_CC_PDF", 45);
+<     _histos.clone("hWcandElecPt_CC_PDF", 45);
+<     _histos.clone("hWcandMet_CC_PDF", 45);
+<     _histos.clone("hWcandMt_PDF", 45);
+<     _histos.clone("hWcandElecPt_PDF", 45);
+<     _histos.clone("hWcandMet_PDF", 45);
+---
+>     _histos.clone("hWcandMt_CC_PDF", PMCSEvent::nPDF);
+>     _histos.clone("hWcandElecPt_CC_PDF", PMCSEvent::nPDF);
+>     _histos.clone("hWcandMet_CC_PDF", PMCSEvent::nPDF);
+>     _histos.clone("hWcandMt_PDF", PMCSEvent::nPDF);
+>     _histos.clone("hWcandElecPt_PDF", PMCSEvent::nPDF);
+>     _histos.clone("hWcandMet_PDF", PMCSEvent::nPDF);
+308c308
+<     std::string wfitree_block = "mass_W_gen/D:tranmass_W_smear/D:elec_E/D:elec_px/D:elec_py/D:elec_pz/D:elec_deteta/D:elec_id/D:met_x/D:met_y/D:gen_W_E/D:gen_W_px/D:gen_W_py/D:gen_W_pz/D:gen_elec_E/D:gen_elec_px/D:gen_elec_py/D:gen_elec_pz/D:gen_nu_x/D:gen_nu_y/D:gen_nu_z/D:nu_px/D:nu_py/D:nu_pz/D:nu_deteta/D:nu_E/D:Trig_Ver/D:RecoilX/D:RecoilY/D:RecoilX_gen/D:RecoilY_gen/D:event_weight/D:elec_upara/D:elec_leakage/D:nu_upara/D:nu_leakage/D:elec_ZBdiff/D:nu_ZBdiff/D:lumi/D:elec_peta/D:nu_peta/D:mass_W_smear/D:vtxZ/D:nInConePh/I:xInConePh/D:SET/D:OutConePh_px/D:OutConePh_py/D:OutConePh_pz/D:OutConePh_E/D:pdfweights[45]/D:massweights[100]/D";
+---
+>     std::string wfitree_block = "mass_W_gen/D:tranmass_W_smear/D:elec_E/D:elec_px/D:elec_py/D:elec_pz/D:elec_deteta/D:elec_id/D:met_x/D:met_y/D:gen_W_E/D:gen_W_px/D:gen_W_py/D:gen_W_pz/D:gen_elec_E/D:gen_elec_px/D:gen_elec_py/D:gen_elec_pz/D:gen_nu_x/D:gen_nu_y/D:gen_nu_z/D:nu_px/D:nu_py/D:nu_pz/D:nu_deteta/D:nu_E/D:Trig_Ver/D:RecoilX/D:RecoilY/D:RecoilX_gen/D:RecoilY_gen/D:event_weight/D:elec_upara/D:elec_leakage/D:nu_upara/D:nu_leakage/D:elec_ZBdiff/D:nu_ZBdiff/D:lumi/D:elec_peta/D:nu_peta/D:mass_W_smear/D:vtxZ/D:nInConePh/I:xInConePh/D:SET/D:OutConePh_px/D:OutConePh_py/D:OutConePh_pz/D:OutConePh_E/D:pdfweights[PMCSEvent::nPDF]/D:massweights[100]/D";
+322a323,325
+> 
+>   // TTree output init
+>   if (_doOutputTree) _outTree.Init();
+720a724,729
+> 
+> 
+>   // create additional ROOT ntuple
+>   _doOutputTree = parm.GetBool("createRootTree",false);
+> 
+> 
+1517c1526
+< 	    for(int i=0; i<45; i++) {
+---
+> 	    for(int i=0; i<PMCSEvent::nPDF; i++) {
+1856a1866,1868
+> 
+>               if(_doOutputTree) _outTree.SetPDFWeights(pmcsevent.pdfreweights, PMCSEvent::nPDF+1);
+> 
+1858c1870
+< 	      for(int i=0; i<45; i++) {
+---
+> 	      for(int i=0; i<PMCSEvent::nPDF; i++) {
+1879a1892
+>               if (_doOutputTree) _outTree.SetMassWeights(&ReweightFactorMass);
+1941a1955,1961
+>             if (_doOutputTree){
+>                 _outTree.SetTruthWenu(&pmcsevent, &emobjs_gen, &wcand);
+>                 _outTree.SetWenu(&wcand, scalarEt_All );
+>                 _outTree.Fill();
+>             }
+> 
+> 
+2067c2087
+<   for( int i = 0 ; i < 45 ; i++ )
+---
+>   for( int i = 0 ; i < PMCSEvent::nPDF ; i++ )
+2116a2137,2138
+>   if (_doOutputTree) _outTree.Save("result_wen_tree.root");
+> 
+2120a2143,2144
+> 
+> 
+Index: WAnalysis.hpp
+===================================================================
+RCS file: /cvsroot/d0cvs/wz_epmcs/src/WAnalysis.hpp,v
+retrieving revision 1.71
+diff -r1.71 WAnalysis.hpp
+10a11
+> #include "PMCSOutputTree.hpp"
+36c37
+<   void fillWFitFile(double event_weight, double gen_mass, PMCSWCand &wcand, PMCSMet &met_gen, std::vector<PMCSEMObj> &emobjs_gen, double gen_boson_pz, PMCSEMObj &nu, double TrigVer,double recoilX_orig, double recoilY_orig, double luminosity, double vtxZ , double pdfreweights[45], PMCSEvent& pmcsevent, double SET, std::vector<PMCSEMObj>& emobjs_smear);
+---
+>   void fillWFitFile(double event_weight, double gen_mass, PMCSWCand &wcand, PMCSMet &met_gen, std::vector<PMCSEMObj> &emobjs_gen, double gen_boson_pz, PMCSEMObj &nu, double TrigVer,double recoilX_orig, double recoilY_orig, double luminosity, double vtxZ , double pdfreweights[PMCSEvent::nPDF], PMCSEvent& pmcsevent, double SET, std::vector<PMCSEMObj>& emobjs_smear);
+120c121
+<   hist_files _histos;  
+---
+>   hist_files _histos;
+220a222,227
+> 
+>   // creating ROOT ntuple additional to histogram output
+>   bool _doOutputTree;
+>   PMCSOutputTree _outTree;
+> 
+> 
+291c298
+<     Double_t pdfweights[45];
+---
+>     Double_t pdfweights[PMCSEvent::nPDF];
+Index: parameters.rc
+===================================================================
+RCS file: /cvsroot/d0cvs/wz_epmcs/src/parameters.rc,v
+retrieving revision 1.244
+diff -r1.244 parameters.rc
+8,9c8,9
+< # Currently it only does the reweighting for CTEQ6L 41 PDF sets
+< # the PDF reweighting factors PDFReweightFactor[41] are defined 
+---
+> # Currently it only does the reweighting for CTEQ6L PMCSEvent::nPDF PDF sets
+> # the PDF reweighting factors PDFReweightFactor[PMCSEvent::nPDF] are defined 
+14c14
+< PDFReweight:  false 
+---
+> PDFReweight:  true
+65c65
+< wmass_step: 0.040
+---
+> wmass_step: 0.002
+85a86,87
+> #create additional ROOT Tuple histogram output
+> createRootTree: true
+Index: pmcsana.cpp
+===================================================================
+RCS file: /cvsroot/d0cvs/wz_epmcs/src/pmcsana.cpp,v
+retrieving revision 1.154
+diff -r1.154 pmcsana.cpp
+24c24
+< static double PDFWeightFactor[45];
+---
+> static double PDFWeightFactor[PMCSEvent::nPDF];
+34c34
+<    cout<<"Initialize some global parameters:"<<endl;
+---
+>    cout<<"Initialize some global parameters: from file" << _parameter_filename <<endl;
+199c199
+<    // will calculate weight for all 45 PDFs, hardcoded
+---
+>    // will calculate weight for all PMCSEvent::nPDF PDFs, hardcoded
+206c206
+<      _neigen = 22;
+---
+>      _neigen = PMCSEvent::nPDF/2;
+214,215c214,215
+<      if (2*_neigen+1 > 45){
+< 	std::cout <<" pmcsana:: PDFWeightFactor[] has size 45, and you have asked for " << std::flush;
+---
+>      if (2*_neigen+1 > PMCSEvent::nPDF){
+> 	std::cout <<" pmcsana:: PDFWeightFactor[] has size "<< PMCSEvent::nPDF <<", and you have asked for " << std::flush;
+494a495
+>   pmcsevent._truth_evtn=entry;
+Index: pmcsana.h
+===================================================================
+RCS file: /cvsroot/d0cvs/wz_epmcs/src/pmcsana.h,v
+retrieving revision 1.56
+diff -r1.56 pmcsana.h
+73c73,78
+<    Float_t         pmcs_ana_pdf_wgts[45];
+---
+>    Float_t         pmcs_ana_evflav1[1000];   //[nevtp]
+>    Float_t         pmcs_ana_evflav2[1000];   //[nevtp]
+>    Float_t         pmcs_ana_evqsq[1000];   //[nevtp]
+>    Float_t         pmcs_ana_evx1[1000];   //[nevtp]
+>    Float_t         pmcs_ana_evx2[1000];   //[nevtp]
+>    Float_t         pmcs_ana_pdf_wgts[PMCSEvent::nPDF];
+194a200
+> 
+277a284,285
+> 
+> 

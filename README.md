@@ -12,4 +12,5 @@ Creating ROOT ntuple from HEP data. Newest version is tupleMaker3.
 setup D0RunII p21.26.00 -O SRT_QUAL=maxopt
 export LINK_SHARED=yes
 '''
-
+* the patch of pmcs for inputs created by tupleMaker3. It includes the saving tree instead of histograms.
+  - highes head revision is 1.248 (Oh My God I Hate CVS Very Much)
