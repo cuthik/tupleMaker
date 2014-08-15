@@ -6,6 +6,7 @@
 #include <string>
 #include "TBranch.h"
 #include "TLeafI.h"
+#include "TString.h"
 
 
 
@@ -14,7 +15,7 @@
 Output::Output(TTree * t) : _tree(t), _written(false),
 #ifdef __USE_PDFS__
 #ifdef __USE_PDFS_RESBOS__
-    ana_form("nevtp/I:npart/I:nvtx/I:evnum[nevtp]/F:evrun[nevtp]/F:evwt[nevtp]/F:evxs[nevtp]/F:pE[npart]/F:pcid[npart]/F:pcnum[npart]/F:pdvtx[npart]/F:peta[npart]/F:pidx[npart]/F:pistable[npart]/F:pphi[npart]/F:ppid[npart]/F:ppt[npart]/F:ppvtx[npart]/F:ppx[npart]/F:ppy[npart]/F:ppz[npart]/F:vcid[nvtx]/F:vcnum[nvtx]/F:vct[nvtx]/F:vidx[nvtx]/F:visdisp[nvtx]/F:vpprt[nvtx]/F:vx[nvtx]/F:vy[nvtx]/F:vz[nvtx]/F:evflav1[nevtp]/F:evflav2[nevtp]/F:evqsq[nevtp]/F:evx1[nevtp]/F:evx2[nevtp]/F:pdf_wgts[150]/F"),
+    ana_form(Form("nevtp/I:npart/I:nvtx/I:evnum[nevtp]/F:evrun[nevtp]/F:evwt[nevtp]/F:evxs[nevtp]/F:pE[npart]/F:pcid[npart]/F:pcnum[npart]/F:pdvtx[npart]/F:peta[npart]/F:pidx[npart]/F:pistable[npart]/F:pphi[npart]/F:ppid[npart]/F:ppt[npart]/F:ppvtx[npart]/F:ppx[npart]/F:ppy[npart]/F:ppz[npart]/F:vcid[nvtx]/F:vcnum[nvtx]/F:vct[nvtx]/F:vidx[nvtx]/F:visdisp[nvtx]/F:vpprt[nvtx]/F:vx[nvtx]/F:vy[nvtx]/F:vz[nvtx]/F:evflav1[nevtp]/F:evflav2[nevtp]/F:evqsq[nevtp]/F:evx1[nevtp]/F:evx2[nevtp]/F:pdf_wgts[%d]/F",nPDF)),
 #else
     ana_form("nevtp/I:npart/I:nvtx/I:evnum[nevtp]/F:evrun[nevtp]/F:evwt[nevtp]/F:evxs[nevtp]/F:pE[npart]/F:pcid[npart]/F:pcnum[npart]/F:pdvtx[npart]/F:peta[npart]/F:pidx[npart]/F:pistable[npart]/F:pphi[npart]/F:ppid[npart]/F:ppt[npart]/F:ppvtx[npart]/F:ppx[npart]/F:ppy[npart]/F:ppz[npart]/F:vcid[nvtx]/F:vcnum[nvtx]/F:vct[nvtx]/F:vidx[nvtx]/F:visdisp[nvtx]/F:vpprt[nvtx]/F:vx[nvtx]/F:vy[nvtx]/F:vz[nvtx]/F:evflav1[nevtp]/F:evflav2[nevtp]/F:evqsq[nevtp]/F:evx1[nevtp]/F:evx2[nevtp]/F"),
 #endif
@@ -165,7 +166,7 @@ void Output::AddParticle( int id, float px, float py, float pz, float E, int ori
 void Output::NewEvent( int evn, double evt_wt , int run , 
         float vx , float vy , float vz , 
         float Q2 , float x1 , float x2 ,
-        float flav1 , float flav2 , std::vector<float> pdf_wgts ) 
+        float flav1=0 , float flav2=0 , std::vector<float> pdf_wgts= ) 
 {
     Reset();
     _ana.nvtx = 1;
@@ -184,7 +185,7 @@ void Output::NewEvent( int evn, double evt_wt , int run ,
     _ana.evx2[0] = x2;
 #endif
 #ifdef __USE_PDFS_RESBOS__
-    if( pdf_wgts.size() <= 51 )
+    if( pdf_wgts.size() <= nPDF+1 )
     {
         for( int i = 0 ; i < pdf_wgts.size() ; i++ )
             _ana.pdf_wgts[i] = pdf_wgts[i];

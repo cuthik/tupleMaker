@@ -59,7 +59,7 @@ class Output {
             Float_t        evx2[1000];
 #endif
 #ifdef __USE_PDFS_RESBOS__
-            Float_t        pdf_wgts[51];
+            Float_t        pdf_wgts[nPDF];
 #endif
         };
 
@@ -150,6 +150,8 @@ class Output {
 
         void Reset();
 
+        static const int nPDF;
+
         anaBlock _ana;
         emBlock _em;
         metBlock _met;
@@ -161,6 +163,8 @@ class Output {
         bool _written;
         TDatabasePDG * _pidDB;
 };
+
+const int Output::nPDF=150;
 
 #endif // Output_h
 
