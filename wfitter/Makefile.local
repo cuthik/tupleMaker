@@ -1,0 +1,66 @@
+
+LIBDIR=lib/
+#PACKAGES=wzfitter wmass_blinding_util
+PACKAGES=wzfitter
+PKG_LIB_PATHS=$(addsuffix .so,$(addprefix ${LIBDIR}lib,${PACKAGES}))
+PKG_FLAG=$(addprefix -l,${PACKAGES})
+
+#SRCS_wzfitter=$(addsuffix .cpp,$(addprefix ./wzfitter/src/,$(shell cat wzfitter/src/COMPONENTS)))
+OBJS_wzfitter=$(addsuffix .o,$(addprefix ./wzfitter/obj/,$(shell cat wzfitter/src/COMPONENTS)))
+OBJS_wmass_blinding_util=$(addprefix ./wmass_blinding_util/obj/,$(shell cat wmass_blinding_util/src/COMPONENTS))
+
+
+BINDIR=bin/
+BIN_SRC_DIR=wzfitter/bin/
+BINARIES=$(shell cat wzfitter/bin/BINARIES)
+BIN_PATHS=$(addprefix ${BINDIR},${BINARIES})
+#BIN_PATHS=$(addsuffix .exe,$(addprefix ${BINDIR},${BINARIES}))
+
+
+INCLUDES= -Iwzfitter -Iwmass_blinding_util
+
+CC=g++ -ggdb
+CC_FLAGS   =-Wall -fPIC $(shell root-config --cflags) ${INCLUDES}
+BIN_FLAGS  =$(CC_FLAGS)
+LD_FLAGS   =$(shell root-config --ldflags) ${INCLUDES}
+LIB_FLAGS  = -L${LIBDIR} ${PKG_FLAG} $(shell root-config --glibs) -lMinuit
+
+
+
+
+all: ${BIN_PATHS}
+
+
+# compile executable
+bin/%: ${BIN_SRC_DIR}%.cpp ${PKG_LIB_PATHS}
+	@echo Creating executable $@
+	${CC} ${BIN_FLAGS} -o $@ $< ${LIB_FLAGS}
+
+
+# make wzfitter lib
+lib/libwzfitter.so: ${OBJS_wzfitter}
+	@echo Creating lib $@
+	${CC} ${LD_FLAGS} -shared -o $@ $^
+
+wzfitter/obj/%.o: wzfitter/src/%.cpp  wzfitter/wzfitter/%.hpp
+	mkdir -p wzfitter/obj
+	@echo Compiling $@
+	${CC} ${CC_FLAGS} -c $<  -o $@ 
+
+
+# make wmass_blinding_util lib
+lib/libwmass_blinding_util.so: ${OBJS_wmass_blinding_util}
+	@echo Creating lib $@
+	${CC} ${LD_FLAGS} -shared -o $@ $^
+
+wmass_blinding_util/obj/%.o: ./wmass_blinding_util/src/%.cpp ./wmass_blinding_util/wmass_blinding_util/%.hpp
+	mkdir -p wmass_blinding_util/obj
+	@echo Compiling $@
+	${CC} ${CC_FLAGS} -o $@ -c $<
+
+
+
+clean:
+	rm -f ${BIN_PATHS}
+	rm -f ${LIB_PATHS}
+	rm -rf wzfitter/obj wmass_blinding_util/obj

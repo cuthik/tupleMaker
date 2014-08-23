@@ -14,3 +14,6 @@ export LINK_SHARED=yes
 '''
 * the patch of pmcs for inputs created by tupleMaker3. It includes the saving tree instead of histograms.
   - highes head revision is 1.248 (Oh My God I Hate CVS Very Much)
+
+* my fitting script for output of patched pmcs with tupleMaker3 is in directory `wfitter`
+  - don't forget to add script to wzfitter/bin/BINARIES
