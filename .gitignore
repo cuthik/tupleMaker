@@ -1,0 +1,10 @@
+*.o
+*.root
+*.hep
+*tags
+.*.sw*
+tupleMaker
+tupleMaker2
+tupleMaker3
+weight_reswenulocal_high_NS_2010000.txt
+.nfs*
