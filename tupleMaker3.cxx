@@ -19,13 +19,16 @@
 //#include "TString.h"
 
 #include <iostream>
+#include <fstream>
 #include <stdexcept>
 //#include <vector>
-//#include <cmath>
+#include <cstdio>
+#include <cerrno>
 
 using TMath::Log2;
 using std::runtime_error;
 using std::vector;
+using std::ifstream;
 using std::cout;
 using std::endl;
 
@@ -41,6 +44,7 @@ class TupleMaker {
             debug             (false),
             doConvertWeight   (false),
             doReweighting     (false),
+            doWeightRatio     (true),
             doSavePartonInfo  (false)
         {
             ClearEvent();
@@ -127,8 +131,19 @@ class TupleMaker {
 
             // CREATE INPUT FOR PMCS
             // open input files
-            FILE * hepfile = fopen(hepfilename.Data(),"r");
-            if (hepfile==NULL) throw runtime_error(hepfilename.Prepend("Can not open file ").Data());
+            cout << Form("Openning input file %s", hepfilename.Data()) << endl;
+            FILE * hepfile;
+            ifstream hepstream;
+            bool useCFile = false;
+            if (useCFile){
+                hepfile = fopen(hepfilename.Data(),"r");
+                if (hepfile==NULL){ perror ( "Opening failed: "); }
+            } else { //use the ifstream
+                hepstream.open(hepfilename.Data());
+                if (!hepstream.is_open() || !hepstream.good()){ throw runtime_error(Form("Can not open file %s",hepfilename.Data()));}
+
+            }
+                //throw runtime_error(Form("Can not open input file `%s`, error number is %i", hepfilename.Data(),errno)); } 
             if (doReweighting && weightfileNames.size()!=0 ) OpenWeightFiles();
 
 
@@ -145,8 +160,13 @@ class TupleMaker {
                 ClearEvent();
                 int rc=0;
                 // first line (event number and weight)
-                rc = fscanf(hepfile,"%i %f", &evn, &evt_wt);
-                if (rc!=2) throw runtime_error("Event line not found.");
+                if (useCFile){
+                    rc = fscanf(hepfile,"%i %f", &evn, &evt_wt);
+                    if (rc!=2) throw runtime_error("Event line not found.");
+                } else { // use the ifstream
+                    hepstream >> evn >> evt_wt;
+                    if (!hepstream.good()) throw runtime_error("Event line not found.");
+                }
                 if( ! fmod( Log2(evn), 1 ) ) cout<<"Processed event: "<<evn<<endl;
                 if( evn == 0 ) {
                     finished_file = true;
@@ -154,8 +174,13 @@ class TupleMaker {
                 } 
 
                 // second line (beam position)
-                rc=fscanf(hepfile,"%f %f %f", &vx, &vy, &vz);
-                if (rc!=3) throw runtime_error("Vertex line not found.");
+                if (useCFile){
+                    rc=fscanf(hepfile,"%f %f %f", &vx, &vy, &vz);
+                    if (rc!=3) throw runtime_error("Vertex line not found.");
+                } else { // use the ifstream
+                    hepstream >> vx >> vy >> vz;
+                    if (!hepstream.good()) throw runtime_error("Vertex line not found.");
+                }
 
                 // read weights
 
@@ -171,7 +196,9 @@ class TupleMaker {
                         for (size_t iw=0; iw<weight_trees.size(); iw++){
                             weight_trees[iw]->GetEntry(ientry);
                             if (weight_evtn[iw] != evn) throw runtime_error("Bad order of events");
-                            weight_PDF.push_back(weight_val[iw]);
+                            double store_weight = weight_val[iw];
+                            if(doWeightRatio) store_weight /= evt_wt;
+                            weight_PDF.push_back(store_weight);
                         }
                         ientry++;
                     }
@@ -189,8 +216,13 @@ class TupleMaker {
                     ClearParticle();
 
                     // read isajet id
-                    rc=fscanf(hepfile,"%i",&id);
-                    if (rc!=1) throw runtime_error("Missing isajet id.");
+                    if (useCFile){
+                        rc=fscanf(hepfile,"%i",&id);
+                        if (rc!=1) throw runtime_error("Missing isajet id.");
+                    } else { // use the ifstream
+                        hepstream >> id;
+                        if (!hepstream.good()) throw runtime_error("Missing isajet id.");
+                    }
 
                     if(id==0){
                         finished_particles=true;
@@ -198,8 +230,13 @@ class TupleMaker {
                     }
 
                     // read kinematics
-                    rc=fscanf(hepfile,"%f %f %f %f %i %i",&px,&py,&pz,&E,&origin,&udk);
-                    if (rc!=6) throw runtime_error("Missing particle kinematics.");
+                    if (useCFile){
+                        rc=fscanf(hepfile,"%f %f %f %f %i %i",&px,&py,&pz,&E,&origin,&udk);
+                        if (rc!=6) throw runtime_error("Missing particle kinematics.");
+                    } else { // use the ifstream
+                        hepstream >> px >> py >> pz >> E >> origin >> udk;
+                        if (!hepstream.good()) throw runtime_error("Missing particle kinematics.");
+                    }
 
                     output->AddParticle( id, px,py,pz,E,origin);
                 }
@@ -223,13 +260,18 @@ class TupleMaker {
             }
 
             //close input files
-            fclose(hepfile);
+                if (useCFile){
+                    fclose(hepfile);
+                } else { // use the ifstream
+                    hepstream.close();
+                }
             if (doReweighting && weightfileNames.size()!=0 ) CloseWeightFiles();
         }
 
 
         void Save(){
-            if (output!=0) output->Write();
+            //if (output!=0) output->Write();
+            if (output!=0) f_out=output->Tree()->GetCurrentFile();
             f_out->Write();
             f_out->Close();
         }
@@ -263,6 +305,7 @@ class TupleMaker {
         bool debug;
         bool doConvertWeight;
         bool doReweighting;
+        bool doWeightRatio;
         bool doSavePartonInfo;
 
 };

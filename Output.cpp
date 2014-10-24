@@ -166,7 +166,7 @@ void Output::AddParticle( int id, float px, float py, float pz, float E, int ori
 void Output::NewEvent( int evn, double evt_wt , int run , 
         float vx , float vy , float vz , 
         float Q2 , float x1 , float x2 ,
-        float flav1=0 , float flav2=0 , std::vector<float> pdf_wgts= ) 
+        float flav1, float flav2, std::vector<float> pdf_wgts) 
 {
     Reset();
     _ana.nvtx = 1;

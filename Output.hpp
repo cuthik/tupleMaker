@@ -16,6 +16,8 @@ class Output {
 
         ~Output() ;
 
+        static const int nPDF=150;
+
         TTree * Tree() { return _tree;}
         void fixLeafOffsets( TBranch * b);
 
@@ -150,7 +152,6 @@ class Output {
 
         void Reset();
 
-        static const int nPDF;
 
         anaBlock _ana;
         emBlock _em;
@@ -164,7 +165,6 @@ class Output {
         TDatabasePDG * _pidDB;
 };
 
-const int Output::nPDF=150;
 
 #endif // Output_h
 

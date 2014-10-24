@@ -17,6 +17,7 @@
 #include <TCanvas.h>
 #include <TGraph.h>
 #include <TString.h>
+#include <TRegexp.h>
 #include <TApplication.h>
 #include <vector>
 #include <TRandom.h>
@@ -70,6 +71,30 @@ class FitHandler {
         static FitHandler * _lasthadler;
 
         void SetupOptions(){
+
+
+            // load input histogram from tree?
+            doHistFromTree = false;
+            if (mtpt.Contains("_tree")){
+                doHistFromTree = true;
+                mtpt.ReplaceAll("_tree","");
+            }
+
+            // use pdf or pt shape reweighting
+            pdf_index=-1;
+            TRegexp number="_[0-9]+";
+            if (mtpt.Contains(number)){
+                // find the number
+                TSubString sub(mtpt(number));
+                // get value
+                TString val(sub.Data());
+                val.ReplaceAll("_","");
+                pdf_index = val.Atoi();
+                // remove number
+                mtpt.Remove(sub.Start(),sub.Length());
+            }
+
+
             bool dorebin = false;
             if ( (mtpt=="Mt" || mtpt=="MT" || mtpt=="mt" ) && (compare_option==2) ){
                 configfile = "runWMassMT.config";
@@ -160,6 +185,11 @@ class FitHandler {
                 throw runtime_error(Form("Didn't understand the options, or requested option not implimented (mtpt=%s,compare_option=%d)",mtpt.Data(),compare_option));
             }
 
+            if (pdf_index!=-1){
+                histname+="_PDF_";
+                histname+=pdf_index;
+            }
+
 
             doBackground = false;
             if (compare_option==0) doBackground=true;
@@ -184,7 +214,8 @@ class FitHandler {
             vstart      = runconfig.getDoubleArray("start_value");    // MINUIT starting values for each parameter
             vstep       = runconfig.getDoubleArray("vstep");          // MINUIT step size in each parameter (in each dimension of parameter space), typically we're talking about one parameter only, M_W or Gamma_W
             maxiter     = runconfig.getInt("numiter");                // maximum number of iterations before MINUIT gives an answer
-            sensitivity = (double)runconfig.getFloat("sensitivity");  // sensitivity of MINUIT fit (how close MINUIT needs to get to a minimum before it stops)  // at the minimum. The default tolerance is 0.1, and  the minimization will stop when the estimated vertical distance to the minimum (EDM) is less than 0.001*[tolerance]*UP (see SET ERR).
+            sensitivity = (double)runconfig.getFloat("sensitivity");  // sensitivity of MINUIT fit (how close MINUIT needs to get to a minimum before it stops) 
+                                                                      // at the minimum. The default tolerance is 0.1, and  the minimization will stop when the estimated vertical distance to the minimum (EDM) is less than 0.001*[tolerance]*UP (see SET ERR).
             _limits     = runconfig.getBool("limits");                // constraining the allowed parameter range during fitting
             vmin        = runconfig.getDoubleArray("vmin");           // if it is a constrained fit (_limits==true), this is lower limit, again this is an array, i.e. a limit for each parameter can be specified here, if there is more than one parameter
             vmax        = runconfig.getDoubleArray("vmax");           // if it is a constrained fit (_limits==true), this is upper limit, again this is an array, i.e. a limit for each parameter can be specified here, if there is more than one parameter
@@ -201,18 +232,43 @@ class FitHandler {
         }
 
         void LoadInputHistogram(){
-            bool doHistFromTree = false;
             if (doHistFromTree){
-                throw runtime_error("Load hist from tree not implemented yet.");
+                TFile * infile = TFile::Open(infilename.Data(), "READ");
+                TTree * tree = (TTree *) infile->Get("physics");
+                TString tree_var = "";
+                TString tree_weight = "weight_evt";
+
+                // setup the variable
+                if (mtpt.Contains("mt",TString::kIgnoreCase)){
+                    tree_var="VB_mt";
+                    tree_var+=">>(300,50,200)";
+                } else if (mtpt.Contains("met",TString::kIgnoreCase)){
+                    tree_var="met_et";
+                    tree_var+=">>(200,0,200)";
+                } else if (mtpt.Contains("pt",TString::kIgnoreCase)){
+                    tree_var="el_pt";
+                    tree_var+=">>(200,0,100)";
+                } else throw runtime_error(Form("Load hist from tree not implemented for variable %s",mtpt.Data()));
+
+                // pdf reweighting
+                if (pdf_index!=-1) {
+                    tree_weight+="*weights_PDF[";
+                    tree_weight+=pdf_index;
+                    tree_weight+="]";
+                }
+
+                // get histogram from tree
+                tree->Draw(tree_var,tree_weight,"goff");
+                inHist=(TH1D*)tree->GetHistogram()->Clone("hdatain");
             } else {
                 TFile * infile = TFile::Open(infilename.Data(), "READ");
                 if (!infile) throw runtime_error(infilename.Prepend("Can not open input file: ").Data());
                 infile->cd(dirname);
-                inHist = (TH1D *) gROOT->FindObject(histname.Data())->Clone("hdataout");
-                if (inHist->GetEntries() < 100000) throw runtime_error(Form("The histogram %s have insuficient statistics (entries=%f)'",histname.Data(),inHist->GetEntries()));
-                if(dorebin){ //for MT 
-                    inHist->Rebin(2);
-                }
+                inHist = (TH1D *) gROOT->FindObject(histname.Data())->Clone("hdatain");
+            }
+            if (inHist->GetEntries() < 100000) throw runtime_error(Form("The histogram %s have insuficient statistics (entries=%f)'",histname.Data(),inHist->GetEntries()));
+            if(dorebin){ //for MT 
+                inHist->Rebin(2);
             }
         }
 
@@ -261,6 +317,7 @@ class FitHandler {
             GetTemplates();
 
             result = new TGraph(1);
+            scan   = new TGraph(200);
 
 
             // Set fit ranges
@@ -366,7 +423,7 @@ class FitHandler {
             double fixedLhood = myFitter->doLogLikelihood(_gpar,true,myRange);
 
             double mw = 80.300;
-            if ((mtpt=="Width" || mtpt=="WIDTH" || mtpt=="width" )){
+            if (_iswidth){
                 mw = 1.971;
                 if (_blinded) mw=paramval-0.1;
                 for (int im = 0; im<201; im++){
@@ -376,7 +433,8 @@ class FitHandler {
 #ifdef ALLOW_BLINDING
                     if (_blinded) apar[0] = BA.Get_Offset_Width()->CalculateTrueWidthFromBlindedWidth(apar[0]);
 #endif
-                    double lval  = (myFitter->doLogLikelihood(apar,true,myRange))-fixedLhood;
+                    //double lval  = (myFitter->doLogLikelihood(apar,true,myRange))-fixedLhood;
+                    double lval  = (myFitter->doChiSquared   (apar,     myRange));
                     scan->SetPoint(im,appar,lval); 
                 }
             }
@@ -391,6 +449,7 @@ class FitHandler {
                     if (_blinded) apar[0] = BA.Get_Offset_Mass()->CalculateTrueMassFromBlindedMass(apar[0]);
 #endif
                     double lval  = myFitter->doLogLikelihood(apar,true,myRange);
+                    //double lval  = myFitter->doChiSquared   (apar,     myRange);
                     scan->SetPoint(im,appar,lval); 
                 }
             }
@@ -459,7 +518,7 @@ class FitHandler {
             result->SetPoint(0,paramval,errval);
 
 
-            bool doScan=false;
+            bool doScan=true;
             if (doScan) ScanDistributions();
             FindBest();
 
@@ -513,40 +572,43 @@ class FitHandler {
         vector<vector<double> > myRange; ///< Vector of ranges. Contain 2 item vectors: [ [min1,max1], [min2,max2], ...]
 
         // options
-        TString   outfilename;
-        TString   infilename;
-        TString   tempfilename;
-        TString   mtpt;
-        int       compare_option; 
+        TString        outfilename;
+        TString        infilename;
+        TString        tempfilename;
+        TString        mtpt;
+        int            compare_option;
+
+        int            pdf_index;        ///< index of reweighted distribution
 
         // fitting options
-        vector<double> frange;         ///< fitting range that is used when the histogram referred on the previous line is being fit, fit range cannot extend beyond lowrange nor highrange values
-        vector<double> vstart;         ///< Start value of parameters.
-        vector<double> vstep;          ///< Step value of parameters.
-        vector<double> vmin;           ///< Limit minimum of parameters.
-        vector<double> vmax;           ///< Limit maximum of parameters.
-        Int_t          maxiter;        ///< Maximal number of iterations.
-        Double_t       sensitivity;    ///< Required tolerance on the function value.
-        bool           _limits;        ///< Apply limit to parameter?
-        bool           _likely;        ///< Use NLL or chi2.
+        vector<double> frange;           ///< fitting range that is used when the histogram referred on the previous line is being fit, fit range cannot extend beyond lowrange nor highrange values
+        vector<double> vstart;           ///< Start value of parameters.
+        vector<double> vstep;            ///< Step value of parameters.
+        vector<double> vmin;             ///< Limit minimum of parameters.
+        vector<double> vmax;             ///< Limit maximum of parameters.
+        Int_t          maxiter;          ///< Maximal number of iterations.
+        Double_t       sensitivity;      ///< Required tolerance on the function value.
+        bool           _limits;          ///< Apply limit to parameter?
+        bool           _likely;          ///< Use NLL or chi2.
 
-        Int_t          _npar;          ///< number of parameters in the fit (e.g M(W) is a single parameter)
-        Int_t          _ndim;          ///< dimensionality of the histograms being fit (e.g. 1D histogram of MT variable)
-        vector<int>    _numbins;       ///< number of bins in the histogram mentioned on the previous line, this number is set in wz_epmcs when templates are made
-        vector<double> _lowb;          ///< low edge of the histogram referred to on the previous line, this number is set in wz_epmcs when templates are made
-        vector<double> _highb;         ///< high edge of the histogram referred to on the previous line, this number is set in wz_epmcs when templates are made
+        Int_t          _npar;            ///< number of parameters in the fit (e.g M(W) is a single parameter)
+        Int_t          _ndim;            ///< dimensionality of the histograms being fit (e.g. 1D histogram of MT variable)
+        vector<int>    _numbins;         ///< number of bins in the histogram mentioned on the previous line, this number is set in wz_epmcs when templates are made
+        vector<double> _lowb;            ///< low edge of the histogram referred to on the previous line, this number is set in wz_epmcs when templates are made
+        vector<double> _highb;           ///< high edge of the histogram referred to on the previous line, this number is set in wz_epmcs when templates are made
 
-        TString        histname;       ///< Name of input histogram
-        TString        tempname;       ///< Base name of template histograms
-        TString        distname;       ///< External template histogram file. Not used!
-        TString        configfile;     ///< Name of text file with configuration.
-        TString        dirname;        ///< Name of directory insinde input root file.
+        TString        histname;         ///< Name of input histogram
+        TString        tempname;         ///< Base name of template histograms
+        TString        distname;         ///< External template histogram file. Not used!
+        TString        configfile;       ///< Name of text file with configuration.
+        TString        dirname;          ///< Name of directory insinde input root file.
 
 
-        bool           doBackground;   ///< Switch to use background.
-        bool           _iswidth;       ///< Switch whether we are fitting widht or mass.
-        bool           dorebin;        ///< Switch to rebin input distribution.
-        bool           _blinded;       ///< Switch to use blinding.
+        bool           doHistFromTree;   ///< Load input hisogram from TTree.
+        bool           doBackground;     ///< Switch to use background.
+        bool           _iswidth;         ///< Switch whether we are fitting widht or mass.
+        bool           dorebin;          ///< Switch to rebin input distribution.
+        bool           _blinded;         ///< Switch to use blinding.
 
 };
 
