@@ -173,7 +173,8 @@ class FitHandler {
 
         void ReadConfigFile(){
             // Read the config file...Obtain global parameters....
-            config runconfig(configfile.Prepend("./wzfitter/config/").Data() );
+            configfile.Prepend("./wzfitter/config/");
+            config runconfig(configfile.Data());
             _npar       = runconfig.getInt("numparam");               // number of parameters in the fit (e.g M(W) is a single parameter)
             _ndim       = runconfig.getInt("ndimensions");            // dimensionality of the histograms being fit (e.g. 1D histogram of MT variable)
             _numbins    = runconfig.getIntArray("numbins");           // number of bins in the histogram mentioned on the previous line, this number is set in wz_epmcs when templates are made
@@ -469,7 +470,7 @@ class FitHandler {
 
             inHist->Write();
             best->Write();
-            scan->Write();
+            if(scan!=0) scan->Write();
             result->Write();
 
             outf->Write();

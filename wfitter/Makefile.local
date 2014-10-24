@@ -19,7 +19,7 @@ BIN_PATHS=$(addprefix ${BINDIR},${BINARIES})
 
 INCLUDES= -Iwzfitter -Iwmass_blinding_util
 
-CC=g++ -ggdb
+CC=g++ -ggdb -std=c++11
 CC_FLAGS   =-Wall -fPIC $(shell root-config --cflags) ${INCLUDES}
 BIN_FLAGS  =$(CC_FLAGS)
 LD_FLAGS   =$(shell root-config --ldflags) ${INCLUDES}
@@ -62,5 +62,5 @@ wmass_blinding_util/obj/%.o: ./wmass_blinding_util/src/%.cpp ./wmass_blinding_ut
 
 clean:
 	rm -f ${BIN_PATHS}
-	rm -f ${LIB_PATHS}
+	rm -f ${PKG_LIB_PATHS}
 	rm -rf wzfitter/obj wmass_blinding_util/obj
