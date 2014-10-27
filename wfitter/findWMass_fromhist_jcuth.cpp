@@ -231,24 +231,40 @@ class FitHandler {
               */
         }
 
+        TH1D * GetHistFromTree(TTree * tree, TString tree_var, TString tree_weight, TString hist_name){
+            tree->Draw(tree_var.Data(),tree_weight.Data(),"goff");
+            return (TH1D*)tree->GetHistogram()->Clone(hist_name.Data());
+
+            //return GetHistFromTree(tt, tree_var.Data(), tree_weight.Data(), hist_name.Data());
+        }
+
+        // TH1D * GetHistFromTree(TTree * tt, string tree_var, string tree_weight, string hist_name){
+        //     tt->Draw(tree_var.c_str(),tree_weight.c_str(),"goff");
+        //     return (TH1D*)tt->GetHistogram()->Clone(hist_name.c_str());
+        // }
+
+        TString GetTreeVar(){
+            TString tree_var = "";
+            // setup the variable
+            if (mtpt.Contains("mt",TString::kIgnoreCase)){
+                tree_var="VB_mt";
+                tree_var+=">>(300,50,200)";
+            } else if (mtpt.Contains("met",TString::kIgnoreCase)){
+                tree_var="MET_et";
+                tree_var+=">>(200,0,200)";
+            } else if (mtpt.Contains("pt",TString::kIgnoreCase)){
+                tree_var="el_pt";
+                tree_var+=">>(200,0,100)";
+            } else throw runtime_error(Form("Load hist from tree not implemented for variable %s",mtpt.Data()));
+            return tree_var;
+        }
+
         void LoadInputHistogram(){
             if (doHistFromTree){
-                TFile * infile = TFile::Open(infilename.Data(), "READ");
-                TTree * tree = (TTree *) infile->Get("physics");
-                TString tree_var = "";
+                ff = TFile::Open(infilename.Data(), "READ");
+                tt = (TTree *) ff->Get("physics");
+                TString tree_var = GetTreeVar();
                 TString tree_weight = "weight_evt";
-
-                // setup the variable
-                if (mtpt.Contains("mt",TString::kIgnoreCase)){
-                    tree_var="VB_mt";
-                    tree_var+=">>(300,50,200)";
-                } else if (mtpt.Contains("met",TString::kIgnoreCase)){
-                    tree_var="met_et";
-                    tree_var+=">>(200,0,200)";
-                } else if (mtpt.Contains("pt",TString::kIgnoreCase)){
-                    tree_var="el_pt";
-                    tree_var+=">>(200,0,100)";
-                } else throw runtime_error(Form("Load hist from tree not implemented for variable %s",mtpt.Data()));
 
                 // pdf reweighting
                 if (pdf_index!=-1) {
@@ -258,12 +274,11 @@ class FitHandler {
                 }
 
                 // get histogram from tree
-                tree->Draw(tree_var,tree_weight,"goff");
-                inHist=(TH1D*)tree->GetHistogram()->Clone("hdatain");
+                inHist = GetHistFromTree(tt, tree_var, tree_weight, "hdatain");
             } else {
-                TFile * infile = TFile::Open(infilename.Data(), "READ");
-                if (!infile) throw runtime_error(infilename.Prepend("Can not open input file: ").Data());
-                infile->cd(dirname);
+                ff = TFile::Open(infilename.Data(), "READ");
+                if (!ff) throw runtime_error(infilename.Prepend("Can not open input file: ").Data());
+                ff->cd(dirname);
                 inHist = (TH1D *) gROOT->FindObject(histname.Data())->Clone("hdatain");
             }
             if (inHist->GetEntries() < 100000) throw runtime_error(Form("The histogram %s have insuficient statistics (entries=%f)'",histname.Data(),inHist->GetEntries()));
@@ -274,22 +289,57 @@ class FitHandler {
 
         void GetTemplates(){
             // Set up templates
+            int dimension = 1;
+            int option = 2; // directory option: 0 in file root; 1 in smeared dir; 2 in default dir;
+            string spline_type = "mass";
+            TString map_name = "histd1map_WMassTemplates";
+            TString backround_filename = "fitter_backgrounds.root";
             if (_iswidth){
-                cout<<"creating spline function for width.."<<endl;
-                templates = new gen1Dspline(const_cast<char*>(tempfilename.Data())
-                        , const_cast<char*>(tempname.Data())
-                        , "histd1map_WWidthTemplates",1,2
-                        , "fitter_backgrounds.root"
-                        , doBackground);
+                spline_type = "width";
+                map_name = "histd1map_WWidthTemplates";
             }
-            else{
-                cout<<"creating spline function for mass.."<<endl;
-                templates = new gen1Dspline(const_cast<char*>(tempfilename.Data())
-                        ,const_cast<char*>(tempname.Data())
-                        ,"histd1map_WMassTemplates", 1, 2
-                        ,"fitter_backgrounds.root"
-                        ,doBackground);
+            // create template file
+            //if (doHistFromTree){
+            if (false){
+                tempfilename = "templates_fromTree_last.root";
+                option = 0; // everything is in file root
+                // create map histogram TODO: read values from file
+                int    Wmass_nbins   = 99;
+                double Wmass_default = 80.419;
+                double Wmass_step    = 0.002;
+                double Wmass_min     = Wmass_default - 50 * Wmass_step ;
+                double Wmass_max     = Wmass_default + 49 * Wmass_step ;
+                // TODO: check if the template file is older than tree file
+                // create file
+                TFile * ftmp = new TFile (tempfilename,"RECREATE" );
+                // put norm histogram (`tempname` ending on "0")
+                TString tmp_histname = tempname ; tmp_histname+=0;
+                TString tmp_weightname = "weight_evt" ;
+                GetHistFromTree(tt, GetTreeVar(), tmp_weightname, tmp_histname )->Write();
+                // put there histogram template histogram ( `tempname` + sample number)
+                for (int i_w = 0; i_w < Wmass_nbins+1; i_w++){
+                    tmp_histname = tempname; tmp_histname+=(i_w+1);
+                    tmp_weightname = "weights_PDF*weights_mass["; 
+                    tmp_weightname += (i_w);
+                    tmp_weightname += "]";
+                    GetHistFromTree(tt, GetTreeVar(), tmp_weightname, tmp_weightname)->Write();
+                }
+                // put there map histogream (`map_name`)
+                TH1D * mapfile = new TH1D(map_name.Data(), "map template -- mass value", Wmass_nbins, Wmass_min, Wmass_max);
+                mapfile -> Write();
+                // save file
+                ftmp->Write();
+                ftmp->Close();
             }
+            // load splines
+            cout<<"creating spline function for "<< spline_type << ".."<<endl;
+            templates = new gen1Dspline(const_cast<char*>(tempfilename.Data())
+                    , const_cast<char*>(tempname.Data())
+                    , const_cast<char*>(map_name.Data())
+                    , dimension
+                    , option
+                    , backround_filename
+                    , doBackground);
         }
 
         void Setup(int argc, const char * argv[]){
@@ -457,11 +507,11 @@ class FitHandler {
 
         void FindBest(){
             TNHist* comphist;
-            tf = new TFile(infilename.Data(),"READ");
-            tf->cd(dirname);
-            inHist = (TH1D*)gROOT->FindObject(histname);
+            //ff = new TFile(infilename.Data(),"READ");
+            //ff->cd(dirname);
+            //inHist = (TH1D*)gROOT->FindObject(histname);
 
-            if (tf){
+            if (ff){
                 vector<int> fnumbins=_numbins;
                 vector<double> flowb=_lowb;
                 vector<double> fhighb=_highb;
@@ -491,7 +541,7 @@ class FitHandler {
 #ifdef ALLOW_BLINDING
             TFile * fpmcs = new TFile(tempfilename,"READ");
             //cout<<" the directory ?"<<fpmcs->FindObject("default")<<endl;
-            BA.SetConfiguration(tf,fpmcs,compare_option);
+            BA.SetConfiguration(ff,fpmcs,compare_option);
             if ((compare_option == 0) && (_blinded == false)) {
                 throw runtime_error ( "Blinding must be turned on to study data." );
             }
@@ -567,7 +617,8 @@ class FitHandler {
         double             paramval;    ///< Final value.
         double             errval;      ///< Final error.
 
-        TFile             *tf;          ///< Pointer to currently opened file.
+        TFile             *ff;          ///< Pointer to currently opened file.
+        TTree             *tt;          ///< Pointer to currently opened tree.
 
         vector<vector<double> > myRange; ///< Vector of ranges. Contain 2 item vectors: [ [min1,max1], [min2,max2], ...]
 
