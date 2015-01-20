@@ -381,7 +381,14 @@ int main(int argc, const char * argv[]){
         }
     }
 
-    tm.Loop();
+    try {
+        tm.Loop();
+    } catch (runtime_error& e){
+        cout << "An error happend while looping:\n" << e.what() << endl;
+        cout << "I will try to save it anyway, please check it carefully." << endl;
+        tm.Save();
+        return 2;
+    }
     tm.Save();
 
     return 0;

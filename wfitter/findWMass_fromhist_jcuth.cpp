@@ -31,7 +31,7 @@
 #include "wzfitter/TNHist.hpp"
 #include "wzfitter/config.hpp"
 
-//#define ALLOW_BLINDING // blinding on local is not possible, it needs cafe Event
+#define ALLOW_BLINDING // blinding on local is not possible, it needs cafe Event
 #ifdef ALLOW_BLINDING
 #include "wmass_blinding_util/OffsetMass.hpp"
 #include "wmass_blinding_util/OffsetWidth.hpp"
@@ -95,7 +95,7 @@ class FitHandler {
             }
 
 
-            bool dorebin = false;
+            dorebin = false;
             if ( (mtpt=="Mt" || mtpt=="MT" || mtpt=="mt" ) && (compare_option==2) ){
                 configfile = "runWMassMT.config";
                 histname = "hWcandMt_CC";
@@ -277,9 +277,10 @@ class FitHandler {
                 inHist = GetHistFromTree(tt, tree_var, tree_weight, "hdatain");
             } else {
                 ff = TFile::Open(infilename.Data(), "READ");
+                cout << "file and hist" << infilename << " " << histname << endl;
                 if (!ff) throw runtime_error(infilename.Prepend("Can not open input file: ").Data());
                 ff->cd(dirname);
-                inHist = (TH1D *) gROOT->FindObject(histname.Data())->Clone("hdatain");
+                inHist = (TH1D *) gROOT->FindObject(histname.Data()); // ->Clone("hdatain");
             }
             if (inHist->GetEntries() < 100000) throw runtime_error(Form("The histogram %s have insuficient statistics (entries=%f)'",histname.Data(),inHist->GetEntries()));
             if(dorebin){ //for MT 
@@ -366,8 +367,8 @@ class FitHandler {
             LoadInputHistogram();
             GetTemplates();
 
-            result = new TGraph(1);
-            scan   = new TGraph(200);
+            result = new TGraph(1);    result -> SetName("result"); result->SetMarkerStyle(20);
+            scan   = new TGraph(200);  scan   -> SetName("scan");
 
 
             // Set fit ranges
@@ -378,7 +379,9 @@ class FitHandler {
 
 
             // Set up fitter
+            //cout << " datahist1 : " << inHist->GetNbinsX() << " " << inHist->GetMean() << " "  << inHist->GetRMS() << " " << inHist->Integral() << endl;
             myFitter = new wzfitter(templates, inHist, const_cast<char*>(configfile.Data()), _likely );
+            //cout << " datahist2 : " << inHist->GetNbinsX() << " " << inHist->GetMean() << " "  << inHist->GetRMS() << " " << inHist->Integral() << endl;
         }
 
         void Thefcn(Int_t &npar, Double_t *gin, Double_t &f, Double_t *par, Int_t iflag){
@@ -394,6 +397,8 @@ class FitHandler {
             bool isBinnedLikelyHood = true;
             if (_likely) f = myFitter->doLogLikelihood(par,isBinnedLikelyHood, myRange);
             else         f = myFitter->doChiSquared   (par,                    myRange);
+
+            //cout << "thefcn: " << par[0] << " : " << f << "  ("<< myRange[0][0] <<","<< myRange[0][1] <<")" <<  endl;
         }
 
 
@@ -472,6 +477,7 @@ class FitHandler {
             double *apar = new Double_t[_npar];
             double fixedLhood = myFitter->doLogLikelihood(_gpar,true,myRange);
 
+
             double mw = 80.300;
             if (_iswidth){
                 mw = 1.971;
@@ -490,9 +496,11 @@ class FitHandler {
             }
             else{
                 mw = 80.300;
+                mw = paramval - errval*3;
                 if (_blinded) mw = paramval-0.1;
                 for (int im = 0; im<201; im++){
-                    apar[0]=mw + im/1000.;
+                    //apar[0]=mw + im/1000.;
+                    apar[0]=mw + im*errval*0.03;
                     //cout<<apar[0]<<" "<<(mw + im/1000.)<<endl;
                     double appar = apar[0];
 #ifdef ALLOW_BLINDING
@@ -500,7 +508,7 @@ class FitHandler {
 #endif
                     double lval  = myFitter->doLogLikelihood(apar,true,myRange);
                     //double lval  = myFitter->doChiSquared   (apar,     myRange);
-                    scan->SetPoint(im,appar,lval); 
+                    scan->SetPoint(im,appar,lval-fixedLhood); 
                 }
             }
         }
@@ -552,6 +560,20 @@ class FitHandler {
         }
 
         void PerformFit(){
+
+            //cout << "dumpstart" <<endl;
+            //cout << histname     .Data() << endl;
+            //cout << tempname     .Data() << endl;
+            //cout << distname     .Data() << endl;
+            //cout << configfile   .Data() << endl;
+            //cout << dirname      .Data() << endl;
+            //cout << outfilename  .Data() << endl;
+            //cout << infilename   .Data() << endl;
+            //cout << tempfilename .Data() << endl;
+            //cout << mtpt         .Data() << endl;
+            //cout << compare_option << endl;
+            //cout << pdf_index      << endl;
+            //cout << "dumpend" <<endl;
 
             /////////////////////////////////////////
             // Before doFit always check with the BA
