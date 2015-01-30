@@ -18,11 +18,15 @@ RCXX=$(CFLAGS) $(ROOTCFLAGS) -ggdb
 #CC = KCC +K0 --exceptions --thread_safe -O $(OPTCOMP)
 CC = g++ $(RCXX) $(OPTCOMP) 
 
-all: tupleMaker tupleMaker2 tupleMaker3
+#all: tupleMaker tupleMaker2 tupleMaker3
+all: tupleMaker3 tupleMaker_DYRES
 
 
 test: test.o Output.o
 	$(CC) test.o Output.o $(LIBS) -o test -lEG
+
+tupleMaker_DYRES: tupleMaker_DYRES.o Output.o
+	$(CC) tupleMaker_DYRES.o Output.o $(LIBS) -o tupleMaker_DYRES -lEG
 
 tupleMaker3: tupleMaker3.o Output.o
 	$(CC) tupleMaker3.o Output.o $(LIBS) -o tupleMaker3 -lEG
@@ -45,6 +49,9 @@ tupleMaker2.o: tupleMaker2.cpp
 tupleMaker3.o: tupleMaker3.cxx
 	$(CC) -c tupleMaker3.cxx -o tupleMaker3.o
 
+tupleMaker_DYRES.o: tupleMaker_DYRES.cxx
+	$(CC) -c tupleMaker_DYRES.cxx -o tupleMaker_DYRES.o
+
 test.o: test.cxx
 	$(CC) -c test.cxx -o test.o
 
@@ -55,3 +62,4 @@ clean:
 	\rm -fr tupleMaker
 	\rm -fr tupleMaker2
 	\rm -fr tupleMaker3
+	\rm -fr tupleMaker_DYRES

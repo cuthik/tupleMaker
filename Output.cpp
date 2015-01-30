@@ -106,10 +106,15 @@ void Output::Write() {
 }
 
 
-void Output::AddParticle( int id, float px, float py, float pz, float E, int origin)
+void Output::AddParticle( int id, float px, float py, float pz, float E, int origin){
+    int pdgid = _pidDB->ConvertIsajetToPdg(id);
+    AddParticlePDGID(pdgid,px,py,pz,E,origin);
+}
+
+void Output::AddParticlePDGID( int id, float px, float py, float pz, float E, int origin)
 {
     double twopi = 2.*acos(-1.);
-    int pdgid = _pidDB->ConvertIsajetToPdg(id);
+    int pdgid = id;
     int npart = _ana.npart;
     _ana.pistable[npart] = origin;
     _ana.pE[npart] = E;
@@ -146,7 +151,8 @@ void Output::AddParticle( int id, float px, float py, float pz, float E, int ori
         _ana.vy[0] = 0.;
         _ana.vz[0] = 0.;
     }
-    if( std::abs(id) == 11 || std::abs(id) == 13 || std::abs(id) ==15 ) // neutrino
+    //if( std::abs(id) == 11 || std::abs(id) == 13 || std::abs(id) ==15 ) // neutrino
+    if( std::abs(pdgid) == 12 || std::abs(pdgid) == 14 || std::abs(pdgid) == 16 ) // neutrino
     {
         // update the met info 
         if( _met.nmetg == 0) {

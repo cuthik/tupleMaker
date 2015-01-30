@@ -22,6 +22,7 @@
 #include <vector>
 #include <TRandom.h>
 #include <TMinuit.h>
+#include <TMath.h>
 
 #include "wzfitter/genDist.hpp"
 #include "wzfitter/genGaussMean.hpp" 
@@ -31,7 +32,7 @@
 #include "wzfitter/TNHist.hpp"
 #include "wzfitter/config.hpp"
 
-#define ALLOW_BLINDING // blinding on local is not possible, it needs cafe Event
+//#define ALLOW_BLINDING // blinding on local is not possible, it needs cafe Event
 #ifdef ALLOW_BLINDING
 #include "wmass_blinding_util/OffsetMass.hpp"
 #include "wmass_blinding_util/OffsetWidth.hpp"
@@ -45,8 +46,10 @@
 #include <stdexcept>
 #include <ostream>
 #include <sstream>
+#include <cmath>
 
 using namespace std;
+using TMath::Log2;
 
 // forward declaration of minimization function
 void FCN(Int_t &npar, Double_t *gin, Double_t &f, Double_t *par, Int_t iflag);
@@ -64,6 +67,10 @@ class FitHandler {
             cout << "|                   For more info run with --help                                |" << endl;
             cout << "+--------------------------------------------------------------------------------+" << endl;
             _lasthadler = this;
+            myFitter = 0;
+            outf     = 0;
+            outTree  = 0;
+            toyHist  = 0;
         };
         ~FitHandler(){
         };
@@ -71,8 +78,6 @@ class FitHandler {
         static FitHandler * _lasthadler;
 
         void SetupOptions(){
-
-
             // load input histogram from tree?
             doHistFromTree = false;
             if (mtpt.Contains("_tree")){
@@ -94,6 +99,17 @@ class FitHandler {
                 mtpt.Remove(sub.Start(),sub.Length());
             }
 
+            doToyMC = false;
+            nToys = 1000;
+            ToyEvents = 0;
+            if (compare_option > 10){
+                doToyMC = true;
+                compare_option = compare_option-10;
+                // /prj_root/7059/wmass2/stark/RunIIcAnal/PMCS14/cabout 
+                //ToyEvents = 59709871; // result_wenD_IIb3.root
+                //ToyEvents+= 55574965; // result_wenD_IIb4.root
+                ToyEvents = 1612010;
+            }
 
             dorebin = false;
             if ( (mtpt=="Mt" || mtpt=="MT" || mtpt=="mt" ) && (compare_option==2) ){
@@ -120,6 +136,7 @@ class FitHandler {
                 histname = "hWcandMt_CC_Width";
                 tempname = "hWcandMt_CC_Width_";
                 distname = "tempWidthhists.root";
+                ToyEvents = 100;
                 dirname = "default";
             } else if ((mtpt=="Ptup1" || mtpt=="PTUP1" || mtpt=="ptup1" ) && (compare_option!=2) ) { 
                 configfile = "runWMassPTUP1.config";   // UP1 = U||<0 
@@ -233,8 +250,9 @@ class FitHandler {
 
         TH1D * GetHistFromTree(TTree * tree, TString tree_var, TString tree_weight, TString hist_name){
             tree->Draw(tree_var.Data(),tree_weight.Data(),"goff");
-            return (TH1D*)tree->GetHistogram()->Clone(hist_name.Data());
-
+            TH1D * h = (TH1D*)tree->GetHistogram()->Clone(hist_name.Data());
+            h->SetDirectory(0);
+            return h;
             //return GetHistFromTree(tt, tree_var.Data(), tree_weight.Data(), hist_name.Data());
         }
 
@@ -275,12 +293,15 @@ class FitHandler {
 
                 // get histogram from tree
                 inHist = GetHistFromTree(tt, tree_var, tree_weight, "hdatain");
+                ff->Close();
             } else {
                 ff = TFile::Open(infilename.Data(), "READ");
                 cout << "file and hist" << infilename << " " << histname << endl;
                 if (!ff) throw runtime_error(infilename.Prepend("Can not open input file: ").Data());
                 ff->cd(dirname);
                 inHist = (TH1D *) gROOT->FindObject(histname.Data()); // ->Clone("hdatain");
+                inHist->SetDirectory(0);
+                ff->Close();
             }
             if (inHist->GetEntries() < 100000) throw runtime_error(Form("The histogram %s have insuficient statistics (entries=%f)'",histname.Data(),inHist->GetEntries()));
             if(dorebin){ //for MT 
@@ -367,8 +388,19 @@ class FitHandler {
             LoadInputHistogram();
             GetTemplates();
 
+
             result = new TGraph(1);    result -> SetName("result"); result->SetMarkerStyle(20);
             scan   = new TGraph(200);  scan   -> SetName("scan");
+
+            if (doToyMC) {
+                TH1::AddDirectory(kFALSE);
+                if (!outf) outf = TFile::Open(outfilename.Data(),"RECREATE");
+                outTree = new TTree("ToyMC", "ToyMC");
+                outTree->Branch("fit_val" , &paramval , "fit_val/D");
+                outTree->Branch("fit_err" , &errval   , "fit_err/D");
+                outTree->Branch("fit_est" , &estval   , "fit_est/D");
+            }
+
 
 
             // Set fit ranges
@@ -382,6 +414,15 @@ class FitHandler {
             //cout << " datahist1 : " << inHist->GetNbinsX() << " " << inHist->GetMean() << " "  << inHist->GetRMS() << " " << inHist->Integral() << endl;
             myFitter = new wzfitter(templates, inHist, const_cast<char*>(configfile.Data()), _likely );
             //cout << " datahist2 : " << inHist->GetNbinsX() << " " << inHist->GetMean() << " "  << inHist->GetRMS() << " " << inHist->Integral() << endl;
+        }
+
+        void SetupNewToy(){
+            if (!myFitter) delete myFitter;
+            if (!toyHist) delete toyHist;
+            toyHist = (TH1D*) inHist->Clone("toyHist");
+            toyHist->Reset();
+            for (int i=0; i<ToyEvents; i++) toyHist->Fill(inHist->GetRandom());
+            myFitter = new wzfitter(templates, toyHist, const_cast<char*>(configfile.Data()), _likely );
         }
 
         void Thefcn(Int_t &npar, Double_t *gin, Double_t &f, Double_t *par, Int_t iflag){
@@ -457,9 +498,9 @@ class FitHandler {
             //                nvpar: the number of currently variable parameters
             //                nparx: the highest (ext) parameter number defined by user
             //                icstat: status integer indicating  goodness of covariance
-            //   gMinuit->mnstat(amin,edm,errdef,nvpar,nparx,icstat);
+            //gMinuit->mnstat(amin,edm,errdef,nvpar,nparx,icstat);
             // Prints the values of the parameters at the time of the call
-            //   gMinuit->mnprin(_npar,amin);
+            //gMinuit->mnprin(_npar,amin);
             //Prints the covariance matrix
             //  gMinuit->mnmatu(1);
 
@@ -547,7 +588,9 @@ class FitHandler {
 
         void CheckBlinding(){
 #ifdef ALLOW_BLINDING
-            TFile * fpmcs = new TFile(tempfilename,"READ");
+            if (BA.isConfigured() ) return;
+            TFile * fpmcs = TFile::Open(tempfilename,"READ");
+            ff = TFile::Open(infilename,"READ");
             //cout<<" the directory ?"<<fpmcs->FindObject("default")<<endl;
             BA.SetConfiguration(ff,fpmcs,compare_option);
             if ((compare_option == 0) && (_blinded == false)) {
@@ -575,29 +618,50 @@ class FitHandler {
             //cout << pdf_index      << endl;
             //cout << "dumpend" <<endl;
 
-            /////////////////////////////////////////
-            // Before doFit always check with the BA
-            //
-            CheckBlinding();
-            //
-            /////////////////////////////////////////
+            int iToy = 0;
+            for (; iToy <= nToys; iToy++){
 
-            doFit();
-            paramval = _gpar[0];
-            errval = _gerr[0];
-            cout << "the value of the parameters are... "  << paramval << endl;
-            cout << "the errors of the parameters are... " << errval   << endl;
-            result->SetPoint(0,paramval,errval);
+                /////////////////////////////////////////
+                // Before doFit always check with the BA
+                //
+                CheckBlinding();
+                //
+                /////////////////////////////////////////
 
-
-            bool doScan=true;
-            if (doScan) ScanDistributions();
-            FindBest();
+                doFit();
+                paramval = _gpar[0];
+                errval   = _gerr[0];
+                estval   = myFitter->doLogLikelihood(_gpar,true,myRange);
+                if (iToy==0){
+                    cout << "the value of the parameters are... "  << paramval << endl;
+                    cout << "the errors of the parameters are... " << errval   << endl;
+                    result->SetPoint(0,paramval,errval);
+                    bool doScan=true;
+                    if (doScan) ScanDistributions();
+                    FindBest();
+                }
+                if (!doToyMC) break;
+                if (iToy>0) 
+                    outTree->Fill(); // first run is for full fit
+                else {
+                    //outTree->Fill(); // first run is for full fit
+                    cout << "=Running ToyMC=" << endl;
+                    cout << " N Toys: " << nToys 
+                         << " events per toy: " << ToyEvents
+                         << " Ntoys x events: " << ToyEvents*nToys
+                         << " input hist entries: " << inHist->GetEntries()
+                         << " fullMC/allToy ratio: " << inHist->GetEntries()/(ToyEvents*nToys)
+                         << endl;
+                }
+                if( ! fmod( Log2(iToy), 1 ) ) cout<<"toys done: "<<iToy<<endl;
+                SetupNewToy();
+            }
 
         }
 
         void Save(){
-            TFile * outf = TFile::Open(outfilename.Data(),"RECREATE");
+            if (!outf) outf = TFile::Open(outfilename.Data(),"RECREATE");
+            outf->cd();
 
             inHist->Write();
             best->Write();
@@ -617,15 +681,18 @@ class FitHandler {
                 <<"     <compare_option>=4  for comparing Full-MC (GEANT) with Full-MC (GEANT)." << endl
                 <<"     <compare_option>=5  for comparing DATA with Full-MC (GEANT)." << endl
                 <<"     <compare_option>=6  for comparing fast-mc-reweighted with fast-mc." << endl
+                <<"     <compare_option>+10  for runnig toy Monte-Carlos." << endl
                 <<"     Only 0, 2 and 3 are useful." << endl;
         }
 
 
     private :
         TH1D              *inHist;      ///< Input histogram. The mass is measured from.
+        TH1D              *toyHist;     ///< ToyMC histogram. The mass is measured from.
         TH1D              *best;        ///< Best template. The mass is measured from.
         TGraph            *scan;        ///< Chi2 or NLL scan. Value of chi2 or NLL per each template.
         TGraph            *result;      ///< W mass fit. x=fitted value, y=uncertainty.
+        TTree             *outTree;     ///< Output tree for ToyHistograms.
 
 #ifdef ALLOW_BLINDING
         BlindingAuthority  BA;          ///< Tool for blinding samples.
@@ -638,8 +705,10 @@ class FitHandler {
         double            *_gerr;       ///< Pointer to parameter error array for minuit.
         double             paramval;    ///< Final value.
         double             errval;      ///< Final error.
+        double             estval;      ///< Final value of estimator.
 
         TFile             *ff;          ///< Pointer to currently opened file.
+        TFile             *outf;        ///< Pointer to output file.
         TTree             *tt;          ///< Pointer to currently opened tree.
 
         vector<vector<double> > myRange; ///< Vector of ranges. Contain 2 item vectors: [ [min1,max1], [min2,max2], ...]
@@ -670,6 +739,9 @@ class FitHandler {
         vector<double> _lowb;            ///< low edge of the histogram referred to on the previous line, this number is set in wz_epmcs when templates are made
         vector<double> _highb;           ///< high edge of the histogram referred to on the previous line, this number is set in wz_epmcs when templates are made
 
+        Int_t          nToys;            ///< number of ToyMC experiments.
+        Int_t          ToyEvents;        ///< number of events per one ToyMC.
+
         TString        histname;         ///< Name of input histogram
         TString        tempname;         ///< Base name of template histograms
         TString        distname;         ///< External template histogram file. Not used!
@@ -677,6 +749,7 @@ class FitHandler {
         TString        dirname;          ///< Name of directory insinde input root file.
 
 
+        bool           doToyMC;          ///< Perform fitting of Monte-Carlo toys.
         bool           doHistFromTree;   ///< Load input hisogram from TTree.
         bool           doBackground;     ///< Switch to use background.
         bool           _iswidth;         ///< Switch whether we are fitting widht or mass.

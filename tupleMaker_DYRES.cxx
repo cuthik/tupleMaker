@@ -1,17 +1,18 @@
-#ifndef tupleMaker3
-#define tupleMaker3
+#ifndef tupleMaker_DYRES
+#define tupleMaker_DYRES
 
 /**
- * @file tupleMaker3.cxx
+ * @file tupleMaker_DYRES.cxx
  * Description of this file
  *
  * @brief A brief description
  *
  * @author cuto <Jakub.Cuth@cern.ch>
- * @date 2014-07-29
+ * @date 2015-01-20
  */
 
 #include "Output.hpp"
+#include "ReadHBOOK.C"
 
 #include "TFile.h"
 //#include "TTree.h"
@@ -39,7 +40,7 @@ class TupleMaker {
             hepfilename       (""),
             //weightfileNames (),
             output            (0),
-            hepfile           (0),
+            //hepfile           (0),
             f_out             (0),
             debug             (false),
             doConvertWeight   (false),
@@ -132,17 +133,17 @@ class TupleMaker {
             // CREATE INPUT FOR PMCS
             // open input files
             cout << Form("Openning input file %s", hepfilename.Data()) << endl;
-            FILE * hepfile;
-            ifstream hepstream;
-            bool useCFile = false;
-            if (useCFile){
-                hepfile = fopen(hepfilename.Data(),"r");
-                if (hepfile==NULL){ perror ( "Opening failed: "); }
-            } else { //use the ifstream
-                hepstream.open(hepfilename.Data());
-                if (!hepstream.is_open() || !hepstream.good()){ throw runtime_error(Form("Can not open file %s",hepfilename.Data()));}
+            //FILE * hepfile;
+            //ifstream hepstream;
+            //bool useCFile = false;
+            //if (useCFile){
+                //hepfile = fopen(hepfilename.Data(),"r");
+                //if (hepfile==NULL){ perror ( "Opening failed: "); }
+            //} else { //use the ifstream
+                //hepstream.open(hepfilename.Data());
+                //if (!hepstream.is_open() || !hepstream.good()){ throw runtime_error(Form("Can not open file %s",hepfilename.Data()));}
 
-            }
+            //}
                 //throw runtime_error(Form("Can not open input file `%s`, error number is %i", hepfilename.Data(),errno)); } 
             if (doReweighting && weightfileNames.size()!=0 ) OpenWeightFiles();
 
@@ -155,32 +156,39 @@ class TupleMaker {
             bool finished_file = false;
             // this loops over events
             int ientry=0;
-            while( ! finished_file ) {
+            DyresNtuple ntup( hepfilename.Data() );
+            //while( ! finished_file ) {
+            for (;ientry < ntup.GetEntries(); ientry++){
                 if (debug && ientry>130) break;
                 ClearEvent();
                 int rc=0;
                 // first line (event number and weight)
-                if (useCFile){
-                    rc = fscanf(hepfile,"%i %f", &evn, &evt_wt);
-                    if (rc!=2) throw runtime_error("Event line not found.");
-                } else { // use the ifstream
-                    hepstream >> evn >> evt_wt;
-                    if (!hepstream.good()) throw runtime_error("Event line not found.");
-                }
+                //if (useCFile){
+                //rc = fscanf(hepfile,"%i %f", &evn, &evt_wt);
+                //if (rc!=2) throw runtime_error("Event line not found.");
+                //} else { // use the ifstream
+                //hepstream >> evn >> evt_wt;
+                //if (!hepstream.good()) throw runtime_error("Event line not found.");
+                //}
+                ntup.GetEntry(ientry);
+                evn = ntup.Evtnum;
+                evt_wt = ntup.Evtwgt;
+
                 if( ! fmod( Log2(evn), 1 ) ) cout<<"Processed event: "<<evn<<endl;
-                if( evn == 0 ) {
-                    finished_file = true;
-                    continue;
-                } 
+                //if( evn == 0 ) {
+                //finished_file = true;
+                //continue;
+                //} 
 
                 // second line (beam position)
-                if (useCFile){
-                    rc=fscanf(hepfile,"%f %f %f", &vx, &vy, &vz);
-                    if (rc!=3) throw runtime_error("Vertex line not found.");
-                } else { // use the ifstream
-                    hepstream >> vx >> vy >> vz;
-                    if (!hepstream.good()) throw runtime_error("Vertex line not found.");
-                }
+                //if (useCFile){
+                    //rc=fscanf(hepfile,"%f %f %f", &vx, &vy, &vz);
+                    //if (rc!=3) throw runtime_error("Vertex line not found.");
+                //} else { // use the ifstream
+                    //hepstream >> vx >> vy >> vz;
+                    //if (!hepstream.good()) throw runtime_error("Vertex line not found.");
+                //}
+                vx = vy = vz = 0.0;
 
                 // read weights
 
@@ -212,33 +220,41 @@ class TupleMaker {
 
                 // loop particles
                 bool finished_particles=false;
-                while (!finished_particles){
+                //while (!finished_particles){
+                for ( int ipart =0; ipart < ntup.Nump; ipart++){
                     ClearParticle();
 
                     // read isajet id
-                    if (useCFile){
-                        rc=fscanf(hepfile,"%i",&id);
-                        if (rc!=1) throw runtime_error("Missing isajet id.");
-                    } else { // use the ifstream
-                        hepstream >> id;
-                        if (!hepstream.good()) throw runtime_error("Missing isajet id.");
-                    }
+                    //if (useCFile){
+                        //rc=fscanf(hepfile,"%i",&id);
+                        //if (rc!=1) throw runtime_error("Missing isajet id.");
+                    //} else { // use the ifstream
+                        //hepstream >> id;
+                        //if (!hepstream.good()) throw runtime_error("Missing isajet id.");
+                    //}
 
-                    if(id==0){
-                        finished_particles=true;
-                        continue;
-                    }
+                    //if(id==0){
+                        //finished_particles=true;
+                        //continue;
+                    //}
 
                     // read kinematics
-                    if (useCFile){
-                        rc=fscanf(hepfile,"%f %f %f %f %i %i",&px,&py,&pz,&E,&origin,&udk);
-                        if (rc!=6) throw runtime_error("Missing particle kinematics.");
-                    } else { // use the ifstream
-                        hepstream >> px >> py >> pz >> E >> origin >> udk;
-                        if (!hepstream.good()) throw runtime_error("Missing particle kinematics.");
-                    }
+                    //if (useCFile){
+                        //rc=fscanf(hepfile,"%f %f %f %f %i %i",&px,&py,&pz,&E,&origin,&udk);
+                        //if (rc!=6) throw runtime_error("Missing particle kinematics.");
+                    //} else { // use the ifstream
+                        //hepstream >> px >> py >> pz >> E >> origin >> udk;
+                        //if (!hepstream.good()) throw runtime_error("Missing particle kinematics.");
+                    //}
 
-                    output->AddParticle( id, px,py,pz,E,origin);
+                    id = ntup.Pid[ipart];
+                    px = ntup.Ppx[ipart];
+                    py = ntup.Ppy[ipart];
+                    pz = ntup.Ppz[ipart];
+                    E  = ntup.Ppe[ipart];
+                    origin = ( ipart==0 ? 0 : 1); // only boson is unstable
+
+                    output->AddParticlePDGID( id, px,py,pz,E,origin);
                 }
 
                 output->Fill();
@@ -260,11 +276,11 @@ class TupleMaker {
             }
 
             //close input files
-                if (useCFile){
-                    fclose(hepfile);
-                } else { // use the ifstream
-                    hepstream.close();
-                }
+                // if (useCFile){
+                //     fclose(hepfile);
+                // } else { // use the ifstream
+                //     hepstream.close();
+                // }
             if (doReweighting && weightfileNames.size()!=0 ) CloseWeightFiles();
         }
 
@@ -282,7 +298,7 @@ class TupleMaker {
         vector<TString> weightfileNames;
         Output * output;
 
-        FILE * hepfile;
+        //FILE * hepfile;
         TFile * f_out;
 
         vector<TFile *> weight_files;
@@ -313,28 +329,19 @@ class TupleMaker {
 
 void help(){
     cout << "USAGE 1 :" << endl;
-    cout << " tupleMaker3 output.root central.help [-f] [ weight_01.root weight_02.root ...]" << endl;
+    cout << " tupleMaker_DYRES output.root input.root [-f] [ weight_01.root weight_02.root ...]" << endl;
     cout << "    -f    save parton info (default off)" << endl << endl;
     cout << " Description : create input tree for pmcs from hep and weight files." << endl<<endl<<endl;
 
 
     cout << "USAGE 2 :" << endl;
-    cout << " tupleMaker3 -r weight.txt" << endl << endl;
+    cout << " tupleMaker_DYRES -r weight.txt" << endl << endl;
     cout << " Description : create root weight file from weight text file." << endl<<endl<<endl;
 
 
     cout << "USAGE 3 :" << endl;
-    cout << " tupleMaker3 -c output.root" << endl << endl;
+    cout << " tupleMaker_DYRES -c output.root" << endl << endl;
     cout << " Description : check number of entries in tree in file output.root." << endl<<endl<<endl;
-
-    cout << "USAGE 4 : TODO" << endl;
-    cout << " tupleMaker3 -k pmcs_in.root new_kin.root" << endl << endl;
-    cout << " Description : will create new_kin.root containing TTree and nDim histogram for kinematic reweighting." << endl<<endl<<endl;
-
-    cout << "USAGE 5 : TODO" << endl;
-    cout << " tupleMaker3 -k pmcs_in.root this_kin.root new_kin.root new_pmcs_in.root" << endl << endl;
-    cout << " Description : create new_pmcs_in.root with weights calculated from this_kin.root and new_kin.root." << endl<<endl<<endl;
-
 
     cout << "To only print this help use '-h' or '--help' as only argument." << endl;
 }
@@ -404,4 +411,4 @@ int main(int argc, const char * argv[]){
 }
 
 
-#endif // tupleMaker3
+#endif // tupleMaker_DYRES

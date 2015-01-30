@@ -140,6 +140,7 @@ class Output {
         void Write() ;
 
         void AddParticle( int id, float px, float py, float pz, float E, int origin);
+        void AddParticlePDGID( int id, float px, float py, float pz, float E, int origin);
 
 
         void NewEvent( int evn, double evt_wt , int run , 
