@@ -10,7 +10,8 @@ OPTCOMP = $(shell root-config --cflags)
 SPECIALFLAGS= --exceptions -D__USE_PDFS_RESBOS__ -D__USE_PDFS__
 
 CFLAGS = $(SPECIALFLAGS) -I- -I../ -I.
-LFLAGS = $(SPECIALFLAGS) -L../../lib/$(SRT_SUBDIR)/
+CFLAGS = $(SPECIALFLAGS) -iquote -I../ -I.
+#LFLAGS = $(SPECIALFLAGS) -L../../lib/$(SRT_SUBDIR)/
 
 RCXX=$(CFLAGS) $(ROOTCFLAGS) -ggdb
 

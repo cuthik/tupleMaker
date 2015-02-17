@@ -12,6 +12,7 @@
 class Output {
     public:
 
+        Output(TString filename);
         Output(TTree * t=0);
 
         ~Output() ;

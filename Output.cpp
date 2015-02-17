@@ -11,6 +11,15 @@
 
 
 
+Output::Output(TString filename) {
+    TFile * f = TFile::Open(filename.Data(),"READ");
+    _tree = (TTree*) f.Get("Global");
+    _cleanup = false;
+
+    //_tree->Branch("pmcs_em", &_em.nelg, em_form.c_str());
+    _tree ->SetBranchAddress("pmcs_em", &_em.nelg);
+
+}
 
 Output::Output(TTree * t) : _tree(t), _written(false),
 #ifdef __USE_PDFS__
@@ -152,7 +161,7 @@ void Output::AddParticlePDGID( int id, float px, float py, float pz, float E, in
         _ana.vz[0] = 0.;
     }
     //if( std::abs(id) == 11 || std::abs(id) == 13 || std::abs(id) ==15 ) // neutrino
-    if( std::abs(pdgid) == 12 || std::abs(pdgid) == 14 || std::abs(pdgid) == 16 ) // neutrino
+    if( TMath::Abs(pdgid) == 12 || TMath::Abs(pdgid) == 14 || TMath::Abs(pdgid) == 16 ) // neutrino
     {
         // update the met info 
         if( _met.nmetg == 0) {

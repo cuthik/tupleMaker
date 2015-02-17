@@ -276,6 +276,82 @@ class TupleMaker {
             f_out->Close();
         }
 
+        // KINEMATIC REWEIGHT PART
+        TString this_pmcs_path;
+        TString this_kin_path;
+        TString new_kin_path;
+        TString new_pmcs_path;
+
+        void load_VBleplep(Output *p, TLorentVector &VB, TLorentzVector &l1, TLorentzVector &l2){
+            // find indeces
+            size_t iVB,il1,il2 = 8000;
+            // get event
+            int VB_PID = 0;
+            for (size_t i = 0; i<p->_ana.npart; i++){
+                int pid = p->_ana.ppid[i];
+                if (pid ==  23 ){ VB_PID = pid; iVB = i; break; }
+                if (pid == -23 ){ VB_PID = pid; iVB = i; break; }
+                if (pid ==  24 ){ VB_PID = pid; iVB = i; break; }
+            }
+            for (size_t i = 0; i<p->_ana.npart; i++){
+                int pid = p->_ana.ppid[i];
+                if (VB_PID ==  23){
+                    if (il1 > 5000 && pid==-11) il1=i;
+                    if (il2 > 5000 && pid== 12) il2=i;
+                }
+                if (VB_PID == -23){
+                    if (il1 > 5000 && pid== 11) il1=i;
+                    if (il2 > 5000 && pid==-12) il2=i;
+                }
+                if (VB_PID ==  24){
+                    if (il1 > 5000 && pid== 11) il1=i;
+                    if (il2 > 5000 && pid==-11) il2=i;
+                }
+                if (il1<5000 && il2<5000) break;
+            }
+            // set 
+            VB.SetPxPyPzE(
+                    this_pmcs->anaBlock.ppx[iVB],
+                    this_pmcs->anaBlock.ppy[iVB],
+                    this_pmcs->anaBlock.ppz[iVB],
+                    this_pmcs->anaBlock.pE [iVB],
+                    );
+            l1.SetPxPyPzE(
+                    this_pmcs->anaBlock.ppx[il1],
+                    this_pmcs->anaBlock.ppy[il1],
+                    this_pmcs->anaBlock.ppz[il1],
+                    this_pmcs->anaBlock.pE [il1],
+                    );
+            l2.SetPxPyPzE(
+                    this_pmcs->anaBlock.ppx[il2],
+                    this_pmcs->anaBlock.ppy[il2],
+                    this_pmcs->anaBlock.ppz[il2],
+                    this_pmcs->anaBlock.pE [il2],
+                    );
+            return;
+        }
+
+        void CreateKinFile(){
+            this_pmcs = new Output(this_pmcs_path);
+            this_kin = new TKinFile(this_kin_path,"RECREATE");
+            for (size_t ievt = 0; ievt < this_pmcs->GetEntries(); ievt++){
+                TLorentVector VB,l1,l2;
+                this_pmcs -> GetEntry(ievt);
+                load_VBleplep(this_pmcs, &VB, &l1, &l2 );
+                this_kin -> Fill(VB, l1, l2, this_pmcs->_ana.evwt[0] );
+            }
+            this_kin->Save();
+            return;
+        }
+
+        void ReweightPMCSbyKin(){
+            this_kin = new KinFile(this_kin_path ,"READ");
+            new_kin  = new KinFile(new_kin_path  ,"READ");
+            return;
+        }
+
+
+
 
     private:
         TString hepfilename;
@@ -317,24 +393,25 @@ void help(){
     cout << "    -f    save parton info (default off)" << endl << endl;
     cout << " Description : create input tree for pmcs from hep and weight files." << endl<<endl<<endl;
 
-
     cout << "USAGE 2 :" << endl;
     cout << " tupleMaker3 -r weight.txt" << endl << endl;
     cout << " Description : create root weight file from weight text file." << endl<<endl<<endl;
-
 
     cout << "USAGE 3 :" << endl;
     cout << " tupleMaker3 -c output.root" << endl << endl;
     cout << " Description : check number of entries in tree in file output.root." << endl<<endl<<endl;
 
-    cout << "USAGE 4 : TODO" << endl;
+    cout << "USAGE 4 :" << endl;
     cout << " tupleMaker3 -k pmcs_in.root new_kin.root" << endl << endl;
     cout << " Description : will create new_kin.root containing TTree and nDim histogram for kinematic reweighting." << endl<<endl<<endl;
 
-    cout << "USAGE 5 : TODO" << endl;
-    cout << " tupleMaker3 -k pmcs_in.root this_kin.root new_kin.root new_pmcs_in.root" << endl << endl;
+    cout << "USAGE 5 :" << endl;
+    cout << " tupleMaker3 -k this_pmcs_in.root this_kin.root new_kin.root new_pmcs_in.root" << endl << endl;
     cout << " Description : create new_pmcs_in.root with weights calculated from this_kin.root and new_kin.root." << endl<<endl<<endl;
 
+    cout << "USAGE 6 :" << endl;
+    cout << " tupleMaker3 -a output.root input.root weight_01.root [...]" << endl << endl;
+    cout << " Description : create output.root with additional weights from (at least one) weight file" << endl<<endl<<endl;
 
     cout << "To only print this help use '-h' or '--help' as only argument." << endl;
 }
@@ -369,6 +446,23 @@ int main(int argc, const char * argv[]){
                 tm.GetEntries(argv[2]);
             } else {
                 tm.GetEntries(argv[2],argv[3]);
+            }
+            return 0;
+        } else if (!tmp.CompareTo("-k") ) {
+            if ( argc == 4 ){
+                // USAGE 4
+                tm.this_pmcs_path = argv[2];
+                tm.this_kin_path  = argv[3];
+                tm.CreateKinFile();
+            } else if ( argc == 6 ) {
+                // USAGE 5
+                tm.this_pmcs_path = argv[2];
+                tm.this_kin_path  = argv[3];
+                tm.new_kin_path   = argv[4];
+                tm.new_pmcs_path  = argv[5];
+                tm.ReweightPMCSbyKin();
+            } else {
+                help();
             }
             return 0;
         } else {
