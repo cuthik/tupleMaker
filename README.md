@@ -4,7 +4,7 @@ tupleMaker
 Creating ROOT ntuple from HEP data. Newest version is tupleMaker3.
 
 
-**NOTE** : You have to compile it on 32bit clued0 machine, but you can run it on 64bit. Don`t know why :(
+**NOTE** : You have to compile it on 32bit clued0 machine, but you can run it on 64bit. Don`t know why :( `
 
 
 * setup for run & compilation:
@@ -17,3 +17,13 @@ export LINK_SHARED=yes
 
 * my fitting script for output of patched pmcs with tupleMaker3 is in directory `wfitter`
   - don't forget to add script to wzfitter/bin/BINARIES
+
+
+Maarten Utils
+=============
+There is nice util procedure provided from Maarten here:
+
+```
+svn co svn+ssh://svn.cern.ch/reps/atlasphys/Physics/StandardModel/ElectroWeak/WMass/Code/Processing/trunk/Analysis/Utils AiUtil
+```
+

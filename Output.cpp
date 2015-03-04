@@ -1,6 +1,7 @@
 
 #include "Output.hpp"
 #include <iostream>
+#include "TFile.h"
 #include "TTree.h"
 #include "TDatabasePDG.h"
 #include <string>
@@ -13,11 +14,13 @@
 
 Output::Output(TString filename) {
     TFile * f = TFile::Open(filename.Data(),"READ");
-    _tree = (TTree*) f.Get("Global");
+    _tree = (TTree*) f->Get("Global");
     _cleanup = false;
 
-    //_tree->Branch("pmcs_em", &_em.nelg, em_form.c_str());
-    _tree ->SetBranchAddress("pmcs_em", &_em.nelg);
+    _tree ->SetBranchAddress( "pmcs_ana" , &_ana.nevtp );
+    _tree ->SetBranchAddress( "pmcs_em"  , &_em.nelg   );
+    _tree ->SetBranchAddress( "pmcs_met" , &_met.nmetg );
+    _tree ->SetBranchAddress( "pmcs_vtx" , &_vtx.nvtxg );
 
 }
 
@@ -107,6 +110,8 @@ Output::~Output() {
 
 
 void Output::Fill() { _tree->Fill();}
+Int_t Output::GetEntry(Long64_t entry) { return _tree->GetEntry(entry);}
+Long64_t Output::GetEntries() { return _tree->GetEntries();}
 
 
 void Output::Write() { 
@@ -177,6 +182,19 @@ void Output::AddParticlePDGID( int id, float px, float py, float pz, float E, in
     }
 }
 
+void Output::AddParticles( Output * old){
+    for (int ipart=0; ipart < old-> _ana.npart; ipart++){
+        //AddParticlePDGID(pdgid,px,py,pz,E,origin);
+        AddParticlePDGID(
+                old->_ana.ppid     [ipart],
+                old->_ana.ppx      [ipart],
+                old->_ana.ppy      [ipart],
+                old->_ana.ppz      [ipart],
+                old->_ana.pE       [ipart],
+                old->_ana.pistable [ipart]
+                );
+    }
+}
 
 void Output::NewEvent( int evn, double evt_wt , int run , 
         float vx , float vy , float vz , 
@@ -206,6 +224,23 @@ void Output::NewEvent( int evn, double evt_wt , int run ,
             _ana.pdf_wgts[i] = pdf_wgts[i];
     }
 #endif
+}
+
+void Output::NewEvent(Output * old, std::vector<float> pdf_wgts){
+    NewEvent(
+            old->_ana.evnum   [0],
+            old->_ana.evwt    [0],
+            old->_ana.evrun   [0],
+            old->_ana.vx      [0],
+            old->_ana.vy      [0],
+            old->_ana.vz      [0],
+            old->_ana.evqsq   [0],
+            old->_ana.evx1    [0],
+            old->_ana.evx2    [0],
+            old->_ana.evflav1 [0],
+            old->_ana.evflav2 [0],
+            pdf_wgts
+            );
 }
 
 

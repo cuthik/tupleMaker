@@ -20,11 +20,14 @@ RCXX=$(CFLAGS) $(ROOTCFLAGS) -ggdb
 CC = g++ $(RCXX) $(OPTCOMP) 
 
 #all: tupleMaker tupleMaker2 tupleMaker3
-all: tupleMaker3 tupleMaker_DYRES
+all: tupleMaker3 tupleMaker_DYRES makeAiProfile
 
 
 test: test.o Output.o
 	$(CC) test.o Output.o $(LIBS) -o test -lEG
+
+makeAiProfile: makeAiProfile.o AiMoments.o TLVUtils.o
+	$(CC) $^ $(LIBS) -o $@ -lEG
 
 tupleMaker_DYRES: tupleMaker_DYRES.o Output.o
 	$(CC) tupleMaker_DYRES.o Output.o $(LIBS) -o tupleMaker_DYRES -lEG
@@ -41,6 +44,12 @@ tupleMaker: tupleMaker.o Output.o
 Output.o: Output.cpp Output.hpp
 	$(CC) -c Output.cpp -o Output.o
 
+TLVUtils.o: AiUtil/TLVUtils.cxx AiUtil/TLVUtils.h
+	$(CC) -c $< -o $@
+
+AiMoments.o: AiUtil/AiMoments.cxx AiUtil/AiMoments.h AiUtil/TLVUtils.h
+	$(CC) -c $< -o $@
+
 tupleMaker.o: tupleMaker.cpp
 	$(CC) -c tupleMaker.cpp -o tupleMaker.o
 
@@ -53,6 +62,9 @@ tupleMaker3.o: tupleMaker3.cxx
 tupleMaker_DYRES.o: tupleMaker_DYRES.cxx
 	$(CC) -c tupleMaker_DYRES.cxx -o tupleMaker_DYRES.o
 
+makeAiProfile.o: makeAiProfile.cpp AiUtil/AiMoments.h ReadResbosROOT.C
+	$(CC) -IAiUtil/ -c $< -o $@
+
 test.o: test.cxx
 	$(CC) -c test.cxx -o test.o
 
@@ -64,3 +76,4 @@ clean:
 	\rm -fr tupleMaker2
 	\rm -fr tupleMaker3
 	\rm -fr tupleMaker_DYRES
+	\rm -fr makeAiProfile

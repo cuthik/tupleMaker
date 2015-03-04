@@ -12,9 +12,10 @@
  */
 
 #include "Output.hpp"
+#include "KinFile.C"
 
 #include "TFile.h"
-//#include "TTree.h"
+#include "TLorentzVector.h"
 #include "TMath.h"
 //#include "TString.h"
 
@@ -120,6 +121,26 @@ class TupleMaker {
             delete[] weight_val ;
         }
 
+        void GetEntryWeights(int &ientry){
+            if(doSavePartonInfo){
+                // load parton info
+                throw runtime_error("Save Parton Info not implemented yet.");
+                if (weightfileNames.size() == 0) throw runtime_error("Missing weight file names.");
+            } else {
+                // load weights
+                weight_PDF.clear();
+                if (weightfileNames.size() == 0) throw runtime_error("Missing weight file names.");
+                for (size_t iw=0; iw<weight_trees.size(); iw++){
+                    weight_trees[iw]->GetEntry(ientry);
+                    if (weight_evtn[iw] != evn) throw runtime_error( Form("Bad order of events: pmcs evt %i vs weight evt %i (of wgt %i)",evn,weight_evtn[iw],iw));
+                    double store_weight = weight_val[iw];
+                    if(doWeightRatio) store_weight /= evt_wt;
+                    weight_PDF.push_back(store_weight);
+                }
+                ientry++;
+            }
+        }
+
 
         void Loop(){
             // CONVERT TXT TO ROOT FILE AND DIE
@@ -183,26 +204,7 @@ class TupleMaker {
                 }
 
                 // read weights
-
-                if (doReweighting){
-                    if(doSavePartonInfo){
-                        // load parton info
-                        throw runtime_error("Save Parton Info not implemented yet.");
-                        if (weightfileNames.size() == 0) throw runtime_error("Missing weight file names.");
-                    } else {
-                        // load weights
-                        weight_PDF.clear();
-                        if (weightfileNames.size() == 0) throw runtime_error("Missing weight file names.");
-                        for (size_t iw=0; iw<weight_trees.size(); iw++){
-                            weight_trees[iw]->GetEntry(ientry);
-                            if (weight_evtn[iw] != evn) throw runtime_error("Bad order of events");
-                            double store_weight = weight_val[iw];
-                            if(doWeightRatio) store_weight /= evt_wt;
-                            weight_PDF.push_back(store_weight);
-                        }
-                        ientry++;
-                    }
-                }
+                if (doReweighting) GetEntryWeights(ientry);
 
                 output->NewEvent( evn, evt_wt, 0 ,
                                   vx, vy, vz,
@@ -282,7 +284,7 @@ class TupleMaker {
         TString new_kin_path;
         TString new_pmcs_path;
 
-        void load_VBleplep(Output *p, TLorentVector &VB, TLorentzVector &l1, TLorentzVector &l2){
+        void load_VBleplep(Output *p, TLorentzVector &VB, TLorentzVector &l1, TLorentzVector &l2){
             // find indeces
             size_t iVB,il1,il2 = 8000;
             // get event
@@ -311,22 +313,22 @@ class TupleMaker {
             }
             // set 
             VB.SetPxPyPzE(
-                    this_pmcs->anaBlock.ppx[iVB],
-                    this_pmcs->anaBlock.ppy[iVB],
-                    this_pmcs->anaBlock.ppz[iVB],
-                    this_pmcs->anaBlock.pE [iVB],
+                    this_pmcs->_ana.ppx[iVB],
+                    this_pmcs->_ana.ppy[iVB],
+                    this_pmcs->_ana.ppz[iVB],
+                    this_pmcs->_ana.pE [iVB]
                     );
             l1.SetPxPyPzE(
-                    this_pmcs->anaBlock.ppx[il1],
-                    this_pmcs->anaBlock.ppy[il1],
-                    this_pmcs->anaBlock.ppz[il1],
-                    this_pmcs->anaBlock.pE [il1],
+                    this_pmcs->_ana.ppx[il1],
+                    this_pmcs->_ana.ppy[il1],
+                    this_pmcs->_ana.ppz[il1],
+                    this_pmcs->_ana.pE [il1]
                     );
             l2.SetPxPyPzE(
-                    this_pmcs->anaBlock.ppx[il2],
-                    this_pmcs->anaBlock.ppy[il2],
-                    this_pmcs->anaBlock.ppz[il2],
-                    this_pmcs->anaBlock.pE [il2],
+                    this_pmcs->_ana.ppx[il2],
+                    this_pmcs->_ana.ppy[il2],
+                    this_pmcs->_ana.ppz[il2],
+                    this_pmcs->_ana.pE [il2]
                     );
             return;
         }
@@ -335,9 +337,9 @@ class TupleMaker {
             this_pmcs = new Output(this_pmcs_path);
             this_kin = new TKinFile(this_kin_path,"RECREATE");
             for (size_t ievt = 0; ievt < this_pmcs->GetEntries(); ievt++){
-                TLorentVector VB,l1,l2;
+                TLorentzVector VB,l1,l2;
                 this_pmcs -> GetEntry(ievt);
-                load_VBleplep(this_pmcs, &VB, &l1, &l2 );
+                load_VBleplep(this_pmcs, VB, l1, l2 );
                 this_kin -> Fill(VB, l1, l2, this_pmcs->_ana.evwt[0] );
             }
             this_kin->Save();
@@ -345,10 +347,37 @@ class TupleMaker {
         }
 
         void ReweightPMCSbyKin(){
-            this_kin = new KinFile(this_kin_path ,"READ");
-            new_kin  = new KinFile(new_kin_path  ,"READ");
+            this_kin = new TKinFile(this_kin_path ,"READ");
+            new_kin  = new TKinFile(new_kin_path  ,"READ");
             return;
         }
+
+        void AddWeightsToPMCS(){
+            // open files / create new
+            this_pmcs = new Output(this_pmcs_path);
+            SetOutName(new_pmcs_path);
+            new_pmcs  = new Output();
+            new_pmcs->Reset();
+            OpenWeightFiles();
+            // loop old add weight
+            int ientry=0;
+            for ( int i=0 ; i< this_pmcs->GetEntries(); i++){
+                this_pmcs->GetEntry(i);
+                evn = i+1;
+                if( ! fmod( Log2(evn), 1 ) ) cout<<"Processed event: "<<evn<<endl;
+                GetEntryWeights(ientry);
+                new_pmcs->NewEvent     ( this_pmcs, weight_PDF );
+                new_pmcs->AddParticles ( this_pmcs             );
+                new_pmcs->Fill();
+            }
+            // save
+            CloseWeightFiles();
+            Save();
+            return;
+        }
+
+
+
 
 
 
@@ -357,6 +386,10 @@ class TupleMaker {
         TString hepfilename;
         vector<TString> weightfileNames;
         Output * output;
+        Output * this_pmcs;
+        Output * new_pmcs;
+        TKinFile * this_kin;
+        TKinFile * new_kin;
 
         FILE * hepfile;
         TFile * f_out;
@@ -461,6 +494,25 @@ int main(int argc, const char * argv[]){
                 tm.new_kin_path   = argv[4];
                 tm.new_pmcs_path  = argv[5];
                 tm.ReweightPMCSbyKin();
+            } else {
+                help();
+            }
+            return 0;
+        } else if (!tmp.CompareTo("-a") ) {
+            // USAGE 6
+            if ( argc > 4 ){
+                tm.new_pmcs_path  = argv[2];
+                tm.this_pmcs_path = argv[3];
+                for (int i=4; i<argc;i++){
+                    tm.AddWeights(argv[i]);
+                }
+                try {
+                    tm.AddWeightsToPMCS();
+                } catch (runtime_error& e){
+                    cout << "An error happend while looping:\n" << e.what() << endl;
+                    cout << "I will try to save it anyway, please check it carefully." << endl;
+                    tm.Save();
+                }
             } else {
                 help();
             }

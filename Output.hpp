@@ -138,10 +138,13 @@ class Output {
         };
 
         void Fill() ;
+        Int_t GetEntry(Long64_t entry);
+        Long64_t GetEntries();
         void Write() ;
 
-        void AddParticle( int id, float px, float py, float pz, float E, int origin);
-        void AddParticlePDGID( int id, float px, float py, float pz, float E, int origin);
+        void AddParticle      ( int id, float px, float py, float pz, float E, int origin);
+        void AddParticlePDGID ( int id, float px, float py, float pz, float E, int origin);
+        void AddParticles     ( Output * old);
 
 
         void NewEvent( int evn, double evt_wt , int run , 
@@ -151,6 +154,7 @@ class Output {
 
         void NewEvent( int evn, double evt_wt , int run , float vx , float vy , float vz , 
                 double evt_wt_PDF[], int length);
+        void NewEvent(Output * old, std::vector<float> pdf_wgts);
 
         void Reset();
 
