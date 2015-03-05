@@ -12,7 +12,8 @@
  */
 
 #include "Output.hpp"
-#include "KinFile.C"
+//#include "KinFile.C"
+#include "KinFile.h"
 
 #include "TFile.h"
 #include "TLorentzVector.h"

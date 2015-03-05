@@ -33,7 +33,7 @@ makeAiProfile: makeAiProfile.o AiMoments.o TLVUtils.o
 tupleMaker_DYRES: tupleMaker_DYRES.o Output.o
 	$(CC) tupleMaker_DYRES.o Output.o $(LIBS) -o tupleMaker_DYRES -lEG
 
-tupleMaker3: tupleMaker3.o Output.o TLVUtils.o
+tupleMaker3: tupleMaker3.o Output.o TLVUtils.o KinFile.o KinFileDict.o
 	$(CC) $^ $(LIBS) -o tupleMaker3 -lEG
 
 tupleMaker2: tupleMaker2.o Output.o
@@ -41,6 +41,10 @@ tupleMaker2: tupleMaker2.o Output.o
 
 tupleMaker: tupleMaker.o Output.o
 	$(CC) tupleMaker.o Output.o $(LIBS) -o tupleMaker -lEG
+
+
+KinFile.o: KinFile.cxx KinFile.h 
+	$(CC) -c $< -o $@
 
 Output.o: Output.cpp Output.hpp
 	$(CC) -c Output.cpp -o Output.o
@@ -57,7 +61,7 @@ tupleMaker.o: tupleMaker.cpp
 tupleMaker2.o: tupleMaker2.cpp
 	$(CC) -c tupleMaker2.cpp -o tupleMaker2.o
 
-tupleMaker3.o: tupleMaker3.cxx KinFile.C AiUtil/TLVUtils.h
+tupleMaker3.o: tupleMaker3.cxx
 	$(CC) -c tupleMaker3.cxx -o tupleMaker3.o
 
 tupleMaker_DYRES.o: tupleMaker_DYRES.cxx
@@ -69,8 +73,11 @@ makeAiProfile.o: makeAiProfile.cpp AiUtil/AiMoments.h ReadResbosROOT.C
 test.o: test.cxx
 	$(CC) -c test.cxx -o test.o
 
-KinFileDict.cxx: KinFile.C
-	$(ROOTCINT) -f $@ -c $^
+KinFileDict.cxx: KinFile.h KinFileLinkDef.h
+	$(ROOTCINT) -f $@ -c -IAiUtil/ $^
+
+KinFileDict.o: KinFileDict.cxx
+	$(CC) -c $< -o $@
 
 clean:
 	\rm -f *.o
