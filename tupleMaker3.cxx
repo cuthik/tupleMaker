@@ -20,6 +20,7 @@
 //#include "TString.h"
 
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <stdexcept>
 //#include <vector>
@@ -51,7 +52,10 @@ class TupleMaker {
             ClearEvent();
             ClearParticle();
         }
-        ~TupleMaker(){}
+        ~TupleMaker(){
+            printf("tm destructor f_out %p\n",f_out);
+            if ( f_out && f_out->IsOpen()) f_out->Close();
+        }
 
 
         inline void SetKinematic(TString hepfile){ hepfilename = hepfile;}
@@ -141,6 +145,26 @@ class TupleMaker {
             }
         }
 
+        void printEvent(double evn, double total=0){
+            if( ! fmod( Log2(evn), 1 ) ) {
+                cout << "Processed event: ";
+                if (total !=0 ){
+                    cout << " " ;
+                    cout << fixed ;
+                    cout << setfill('0') ;
+                    cout << setw(5) ;
+                    cout << setprecision(2) ;
+                    cout << evn/total*100 ;
+                    cout << "%  ";
+                } 
+                cout << setprecision(8) << setfill(' ') ;
+                cout << (size_t) evn;
+                cout << endl;
+                //cout << "\r";
+                //cout.flush();
+            }
+        }
+
 
         void Loop(){
             // CONVERT TXT TO ROOT FILE AND DIE
@@ -188,7 +212,7 @@ class TupleMaker {
                     hepstream >> evn >> evt_wt;
                     if (!hepstream.good()) throw runtime_error("Event line not found.");
                 }
-                if( ! fmod( Log2(evn), 1 ) ) cout<<"Processed event: "<<evn<<endl;
+                printEvent(evn);
                 if( evn == 0 ) {
                     finished_file = true;
                     continue;
@@ -237,7 +261,7 @@ class TupleMaker {
                         if (rc!=6) throw runtime_error("Missing particle kinematics.");
                     } else { // use the ifstream
                         hepstream >> px >> py >> pz >> E >> origin >> udk;
-                        if (!hepstream.good()) throw runtime_error("Missing particle kinematics.");
+                        if (!hepstream.good()) throw runtime_error("Missing particle && ematics.");
                     }
 
                     output->AddParticle( id, px,py,pz,E,origin);
@@ -276,6 +300,7 @@ class TupleMaker {
             if (output!=0) f_out=output->Tree()->GetCurrentFile();
             f_out->Write();
             f_out->Close();
+            f_out=0;
         }
 
         // KINEMATIC REWEIGHT PART
@@ -284,51 +309,55 @@ class TupleMaker {
         TString new_kin_path;
         TString new_pmcs_path;
 
-        void load_VBleplep(Output *p, TLorentzVector &VB, TLorentzVector &l1, TLorentzVector &l2){
+        void load_VBleplep(Output *p, TLorentzVector &VB, TLorentzVector &l_part, TLorentzVector &l_anti){
             // find indeces
-            size_t iVB,il1,il2 = 8000;
+            size_t iVB     = 9999;
+            size_t il_part = 9999;
+            size_t il_anti = 9999;
             // get event
             int VB_PID = 0;
-            for (size_t i = 0; i<p->_ana.npart; i++){
+            for (size_t i = 0; i<p->_ana.npart; i++){ // find vector boson type
                 int pid = p->_ana.ppid[i];
-                if (pid ==  23 ){ VB_PID = pid; iVB = i; break; }
-                if (pid == -23 ){ VB_PID = pid; iVB = i; break; }
-                if (pid ==  24 ){ VB_PID = pid; iVB = i; break; }
+                if (pid ==  23 ){ VB_PID =  pid; iVB = i; break; }
+                if (pid ==  24 ){ VB_PID =  pid; iVB = i; break; }
+                if (pid == -24 ){ VB_PID =  pid; iVB = i; break; }
             }
             for (size_t i = 0; i<p->_ana.npart; i++){
                 int pid = p->_ana.ppid[i];
-                if (VB_PID ==  23){
-                    if (il1 > 5000 && pid==-11) il1=i;
-                    if (il2 > 5000 && pid== 12) il2=i;
+                //printf("i %d pid %d pt %d \n", i, pid, p->_ana.ppt[i]);
+                if (VB_PID ==  24){ // W+
+                    if (il_part == 9999 && pid== 12) il_part=i; // nu
+                    if (il_anti == 9999 && pid==-11) il_anti=i; // e+
                 }
-                if (VB_PID == -23){
-                    if (il1 > 5000 && pid== 11) il1=i;
-                    if (il2 > 5000 && pid==-12) il2=i;
+                if (VB_PID == -24){ // W-
+                    if (il_part == 9999 && pid== 11) il_part=i; // e-
+                    if (il_anti == 9999 && pid==-12) il_anti=i; // nubar
                 }
-                if (VB_PID ==  24){
-                    if (il1 > 5000 && pid== 11) il1=i;
-                    if (il2 > 5000 && pid==-11) il2=i;
+                if (VB_PID ==  23){ // Z
+                    if (il_part == 9999 && pid== 11) il_part=i; // e-
+                    if (il_anti == 9999 && pid==-11) il_anti=i; // e+
                 }
-                if (il1<5000 && il2<5000) break;
+                if (il_part!=9999 && il_anti!=9999) break;
             }
-            // set 
+            //printf("VB_PID %d iVB %d il_part %d il_anti %d npart %d \n", VB_PID, iVB, il_part, il_anti, p->_ana.npart );
+            // set kinematics
             VB.SetPxPyPzE(
-                    this_pmcs->_ana.ppx[iVB],
-                    this_pmcs->_ana.ppy[iVB],
-                    this_pmcs->_ana.ppz[iVB],
-                    this_pmcs->_ana.pE [iVB]
+                    p->_ana.ppx[iVB],
+                    p->_ana.ppy[iVB],
+                    p->_ana.ppz[iVB],
+                    p->_ana.pE [iVB]
                     );
-            l1.SetPxPyPzE(
-                    this_pmcs->_ana.ppx[il1],
-                    this_pmcs->_ana.ppy[il1],
-                    this_pmcs->_ana.ppz[il1],
-                    this_pmcs->_ana.pE [il1]
+            l_part.SetPxPyPzE(
+                    p->_ana.ppx[il_part],
+                    p->_ana.ppy[il_part],
+                    p->_ana.ppz[il_part],
+                    p->_ana.pE [il_part]
                     );
-            l2.SetPxPyPzE(
-                    this_pmcs->_ana.ppx[il2],
-                    this_pmcs->_ana.ppy[il2],
-                    this_pmcs->_ana.ppz[il2],
-                    this_pmcs->_ana.pE [il2]
+            l_anti.SetPxPyPzE(
+                    p->_ana.ppx[il_anti],
+                    p->_ana.ppy[il_anti],
+                    p->_ana.ppz[il_anti],
+                    p->_ana.pE [il_anti]
                     );
             return;
         }
@@ -336,19 +365,53 @@ class TupleMaker {
         void CreateKinFile(){
             this_pmcs = new Output(this_pmcs_path);
             this_kin = new TKinFile(this_kin_path,"RECREATE");
-            for (size_t ievt = 0; ievt < this_pmcs->GetEntries(); ievt++){
-                TLorentzVector VB,l1,l2;
+            size_t Nevents = 2000; this_pmcs->GetEntries();
+            for (size_t ievt = 0; ievt < Nevents; ievt++){
+                printEvent(ievt,Nevents);
                 this_pmcs -> GetEntry(ievt);
-                load_VBleplep(this_pmcs, VB, l1, l2 );
-                this_kin -> Fill(VB, l1, l2, this_pmcs->_ana.evwt[0] );
+                TLorentzVector VB,l_part,l_anti;
+                load_VBleplep(this_pmcs, VB, l_part, l_anti );
+                // VB.Print();
+                // l_part.Print();
+                // l_anti.Print();
+                this_kin -> Fill(VB, l_part, l_anti, this_pmcs->_ana.evwt[0] );
             }
             this_kin->Save();
             return;
         }
 
         void ReweightPMCSbyKin(){
+            this_pmcs = new Output(this_pmcs_path);
+            SetOutName(new_pmcs_path);
+            new_pmcs  = new Output();
+            new_pmcs ->Reset();
+
             this_kin = new TKinFile(this_kin_path ,"READ");
             new_kin  = new TKinFile(new_kin_path  ,"READ");
+
+            // loop old add weight
+            int ientry=0;
+            int Nevents = this_pmcs->GetEntries();
+            Nevents = 2000;
+            //new_kin->histND->ComputeIntegral();
+            //new_kin->histND->Dump();
+            for ( int i=0 ; i< Nevents; i++){
+                this_pmcs->GetEntry(i);
+                evn = i+1;
+                printEvent(evn,Nevents);
+                // load kinematics
+                TLorentzVector VB,l_part,l_anti;
+                load_VBleplep(this_pmcs, VB, l_part, l_anti );
+                // get new weight
+                double new_wt = new_kin->GetNewWeight(new_kin, VB, l_part, l_anti);
+                // fill new weight
+                new_pmcs->NewEventNewWeight( this_pmcs, new_wt * this_pmcs->_ana.evwt[0] ); new_pmcs->AddParticles( this_pmcs );
+                new_pmcs->Fill();
+            }
+            // save
+            Save();
+            delete this_kin;
+            delete new_kin;
             return;
         }
 
@@ -361,10 +424,11 @@ class TupleMaker {
             OpenWeightFiles();
             // loop old add weight
             int ientry=0;
-            for ( int i=0 ; i< this_pmcs->GetEntries(); i++){
+            int Nevents = this_pmcs->GetEntries();
+            for ( int i=0 ; i< Nevents; i++){
                 this_pmcs->GetEntry(i);
                 evn = i+1;
-                if( ! fmod( Log2(evn), 1 ) ) cout<<"Processed event: "<<evn<<endl;
+                printEvent(evn,Nevents);
                 GetEntryWeights(ientry);
                 new_pmcs->NewEvent     ( this_pmcs, weight_PDF );
                 new_pmcs->AddParticles ( this_pmcs             );

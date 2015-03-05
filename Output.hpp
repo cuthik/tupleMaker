@@ -155,6 +155,7 @@ class Output {
         void NewEvent( int evn, double evt_wt , int run , float vx , float vy , float vz , 
                 double evt_wt_PDF[], int length);
         void NewEvent(Output * old, std::vector<float> pdf_wgts);
+        void NewEventNewWeight(Output * old, double new_wt);
 
         void Reset();
 
@@ -164,6 +165,7 @@ class Output {
         metBlock _met;
         vtxBlock _vtx;
 
+        TFile * _file;
         TTree * _tree;
 
         bool _cleanup;

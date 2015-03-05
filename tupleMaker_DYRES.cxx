@@ -51,7 +51,9 @@ class TupleMaker {
             ClearEvent();
             ClearParticle();
         }
-        ~TupleMaker(){}
+        ~TupleMaker(){
+            if (f_out && f_out->IsOpen()) f_out->Close();
+        }
 
 
         inline void SetKinematic(TString hepfile){ hepfilename = hepfile;}

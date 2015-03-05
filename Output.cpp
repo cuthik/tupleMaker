@@ -13,8 +13,8 @@
 
 
 Output::Output(TString filename) {
-    TFile * f = TFile::Open(filename.Data(),"READ");
-    _tree = (TTree*) f->Get("Global");
+    _file = TFile::Open(filename.Data(),"READ");
+    _tree = (TTree*) _file->Get("Global");
     _cleanup = false;
 
     _tree ->SetBranchAddress( "pmcs_ana" , &_ana.nevtp );
@@ -49,8 +49,7 @@ Output::Output(TTree * t) : _tree(t), _written(false),
 
     TLeafI * index = 0;
 
-    TBranch * b_ana =
-        _tree->Branch("pmcs_ana", &_ana.nevtp, ana_form.c_str());
+    TBranch * b_ana = _tree->Branch("pmcs_ana", &_ana.nevtp, ana_form.c_str());
 
     index = (TLeafI*)b_ana->GetLeaf("nevtp");
     index->SetMaximum(1000);
@@ -106,6 +105,7 @@ Output::Output(TTree * t) : _tree(t), _written(false),
 Output::~Output() {
     if(!_written) Write();
     if( _cleanup) delete _tree;
+    if( _file && _file->IsOpen() ) _file->Close();
 }
 
 
@@ -224,6 +224,25 @@ void Output::NewEvent( int evn, double evt_wt , int run ,
             _ana.pdf_wgts[i] = pdf_wgts[i];
     }
 #endif
+}
+
+void Output::NewEventNewWeight(Output * old, double new_wt){
+    std::vector<float> pdf_wgts;
+    for ( size_t i=0; i<nPDF+1; i++) pdf_wgts.push_back(old->_ana.pdf_wgts[i]);
+    NewEvent(
+            old->_ana.evnum   [0],
+            new_wt,
+            old->_ana.evrun   [0],
+            old->_ana.vx      [0],
+            old->_ana.vy      [0],
+            old->_ana.vz      [0],
+            old->_ana.evqsq   [0],
+            old->_ana.evx1    [0],
+            old->_ana.evx2    [0],
+            old->_ana.evflav1 [0],
+            old->_ana.evflav2 [0],
+            pdf_wgts
+            );
 }
 
 void Output::NewEvent(Output * old, std::vector<float> pdf_wgts){

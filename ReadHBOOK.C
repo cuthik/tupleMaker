@@ -19,7 +19,7 @@
 
 class DyresNtuple{
     public :
-        ~DyresNtuple(){ if(!hfile && hfile->IsOpen()) hfile->Close(); };
+        ~DyresNtuple(){ if(hfile && hfile->IsOpen()) hfile->Close(); };
         DyresNtuple(TString path="TestJob/dyres.hbook", int lrecl=1024)
        {
            tree    = 0 ;
