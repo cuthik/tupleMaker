@@ -57,21 +57,74 @@ void THnD_KIN::Fill(){
     THnD::Fill(x,*weight_ptr);
 }
 
+bool THnD_KIN::isOutlayer(){ // underflow/overflow
+    for (size_t i=0; i< fNdimensions; i++){
+        if ( x[i] < GetAxis(i)->GetXmin() )  return true;
+        if ( x[i] > GetAxis(i)->GetXmax() )  return true;
+    }
+    return false;
+}
+
 double THnD_KIN::GetBinContent(){
     updateBin();
+    if (isOutlayer()) return 0;
     return THnD::GetBinContent(bin);
+}
+
+double THnD_KIN::Integral(){
+    // This is another very funny ROOT story:
+    // The ComputeIntegral function will compute correctly everyting and than..
+    // I don't know why is normalizing integral array. integral array is
+    // defined
+    //
+    //     fIntegral[i]  = Sum_j=1^i bin_j
+    //
+    // so last item [GetBins()] contain integral and first [0] contains 0.
+    // but after normalization the last bin contain 1 and all others the fraction
+    //
+    //     fIntegral[i]  = Sum_j=1^i bin_j / Sum_k=1^N bin_j
+    //
+    // so I decided to calculate back the integral from second item
+    //
+    //     fIntegral[1]  = bin_1 / Integral    =>     Integral = bin_1/fIntegral[1]
+    //
+    // this would be true if first bin has some value. The savest value is to
+    // find first nonzero bin. Search code adapted from ComputeIntegral.
+    //
+    // compute integral normaly
+    //if(fIntegralStatus == kValidInt && fIntegral && fIntegral[0]) return fIntegral[0];
+    if(fIntegralStatus != kValidInt) ComputeIntegral();
+    if(fIntegralStatus != kValidInt) return 0;
+    Int_t* coord = new Int_t[fNdimensions];
+    // setup coords in way that we skipp almost all underflows
+    //coord[fNdimensions-1] = 0; // only last one
+    Long64_t i = 0;
+    Double_t VAL = 0;
+    THnIter iter(this);
+    while ((i = iter.Next(coord)) >= 0) {
+        VAL = THnD::GetBinContent(i);
+        // check whether the bin is regular
+        bool regularBin = true;
+        for (Int_t dim = 0; dim < fNdimensions; dim++) {
+            if (coord[dim] < 1 || coord[dim] > GetAxis(dim)->GetNbins()) {
+                regularBin = false;
+                break;
+            }
+        }
+        // if outlayer, skip
+        if (!regularBin) continue;
+        // as soon as we have non-zero value we can stop
+        if (VAL!=0) break;
+    }
+    delete [] coord;
+    fIntegral[0] = VAL/fIntegral[i+1];
+    return fIntegral[0];
 }
 
 void THnD_KIN::updateBin(){
     // read out the values to one array
-    Dump();
-
     for ( size_t i=0; i < KDIM; i++){
-        printf("val_ptr %d %p %f", i, val_ptrs[i], *val_ptrs[i]);
         x[i] = *(val_ptrs[i]);
-        printf(" x %p %f\n", &x[i], x[i]);
-        printf("   -- axis %d ptr %p\n", i, fAxes[i]                 );
-        //printf("   -- axis %d bin %d\n", i, GetAxis(i)->FindFixBin(x[i]));
     }
     bin = GetBin(x);
 }
@@ -83,7 +136,6 @@ void THnD_KIN::updateBin(){
 TKinFile::TKinFile(TString name, TString opt){
     const char * c_opt=opt.Data();
     file = TFile::Open(name,opt);
-    printf("Tkinkonstruktor\n");
     file->cd();
     ebeam = 1960; // GeV -- tevatron is default
     normND = 0;
@@ -105,23 +157,20 @@ TKinFile::TKinFile(TString name, TString opt){
         //tree->SetBranchAddress("theta_CS/D" , &theta_CS );
         //tree->SetBranchAddress("phi_CS/D"   , &phi_CS   );
         hw = new TH1D ("weights" , "weights" , 100         , -1           , 10);
-        h1 = new TH1D (THnD_KIN::var_name_1, THnD_KIN::var_name_1, THnD_KIN::kin_nbins[0], THnD_KIN::bin_edges_1      );
-        h2 = new TH1D (THnD_KIN::var_name_2, THnD_KIN::var_name_2, THnD_KIN::kin_nbins[1], THnD_KIN::bin_edges_2      );
-        h3 = new TH1D (THnD_KIN::var_name_3, THnD_KIN::var_name_3, THnD_KIN::kin_nbins[2], THnD_KIN::bin_edges_3      );
-        h4 = new TH1D (THnD_KIN::var_name_4, THnD_KIN::var_name_4, THnD_KIN::kin_nbins[3], THnD_KIN::bin_edges_4      );
+        h1 = new TH1D (THnD_KIN::var_name_1, THnD_KIN::var_name_1, THnD_KIN::kin_nbins[0], THnD_KIN::bin_edges_1 );
+        h2 = new TH1D (THnD_KIN::var_name_2, THnD_KIN::var_name_2, THnD_KIN::kin_nbins[1], THnD_KIN::bin_edges_2 );
+        h3 = new TH1D (THnD_KIN::var_name_3, THnD_KIN::var_name_3, THnD_KIN::kin_nbins[2], THnD_KIN::bin_edges_3 );
+        h4 = new TH1D (THnD_KIN::var_name_4, THnD_KIN::var_name_4, THnD_KIN::kin_nbins[3], THnD_KIN::bin_edges_4 );
     }
-
     qt = y = cos_theta_CS = phi_CS = 0.;
-
     histND->weight_ptr  = & weight       ;
     histND->val_ptrs[0] = & qt           ;
     histND->val_ptrs[1] = & y            ;
     histND->val_ptrs[2] = & cos_theta_CS ;
     histND->val_ptrs[3] = & phi_CS       ;
 }
+
 TKinFile::~TKinFile(){
-    printf("kinfile destruktor\n");
-    file->Dump();
     if (file && file->IsOpen()) file->Close();
     if (tree)   delete tree;
     if (histND) delete histND;
@@ -132,8 +181,6 @@ void TKinFile::setValues(const TLorentzVector &VB, const TLorentzVector &l1, con
     qt = VB.Pt();
     y = VB.Rapidity();
     Utils::getCSFAngles(l1,-1,l2,ebeam,cos_theta_CS,phi_CS,&aimom_CS);
-    printf(" qt %p y %p costh %p phi %p\n", &qt, &y, &cos_theta_CS, &phi_CS);
-    printf(" qt %f y %f costh %f phi %f\n", qt, y, cos_theta_CS, phi_CS);
     return;
 }
 
@@ -150,10 +197,9 @@ void TKinFile::Fill(const TLorentzVector &VB, const TLorentzVector &l1, const TL
 }
 
 void TKinFile::normalizeKin(){
-    printf("integral old %f\n", histND->ComputeIntegral() );
     normND = (THnD_KIN *) histND->Clone("norm");
-    normND -> Scale(1./normND->ComputeIntegral());
-    printf("integral old %f new %f\n", histND->ComputeIntegral(), normND->ComputeIntegral() );
+    normND -> Scale(1./normND->Integral());
+    return;
 }
 
 double TKinFile::getValue(const double qt, const double y, const double cos_theta_CS, const double phi_CS ){
@@ -162,19 +208,18 @@ double TKinFile::getValue(const double qt, const double y, const double cos_thet
     this->y            = y;
     this->cos_theta_CS = cos_theta_CS;
     this->phi_CS       = phi_CS;
-    //return normND->GetBinContent();
-    return histND->GetBinContent();
+    return normND->GetBinContent();
 }
 
 double TKinFile::GetNewWeight(TKinFile * new_kin, const TLorentzVector &VB, const TLorentzVector &l_part, const TLorentzVector &l_anti ){
     setValues(VB,l_part,l_anti);
-    double new_wt = new_kin->getValue(qt,y,cos_theta_CS,phi_CS);
     double this_wt = getValue(qt,y,cos_theta_CS,phi_CS);
+    if (!this_wt) return 0;
+    double new_wt = new_kin->getValue(qt,y,cos_theta_CS,phi_CS);
     return new_wt/this_wt;
 }
 
 void TKinFile::Save(){
-    histND->Dump();
     file->cd();
     histND->Write();
     file->Write();

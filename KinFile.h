@@ -37,13 +37,15 @@ class THnD_KIN : public THnD {
 
         void Fill();
         double GetBinContent();
+        double Integral();
         void updateBin();
+        bool isOutlayer();
 
         // value helpers
-        int      bin;
-        double   x[KDIM];
-        double * weight_ptr     ; //!
-        double * val_ptrs[KDIM] ; //!
+        int      bin             ; // current bin index
+        double   x[KDIM]         ; // array of current values (needed for passing to THn)
+        Double_t *weight_ptr     ; //[fNdimensions] pointer to event weight (dimmension is a hack)
+        Double_t *val_ptrs[KDIM] ; //[fNdimensions] array of pointers to variables (dimension is a hack)
 
         // initial definitions
         static const int    kin_dim       ; ///< Number of variables

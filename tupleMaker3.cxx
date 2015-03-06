@@ -54,7 +54,6 @@ class TupleMaker {
             ClearParticle();
         }
         ~TupleMaker(){
-            printf("tm destructor f_out %p\n",f_out);
             if ( f_out && f_out->IsOpen()) f_out->Close();
         }
 
@@ -325,7 +324,6 @@ class TupleMaker {
             }
             for (size_t i = 0; i<p->_ana.npart; i++){
                 int pid = p->_ana.ppid[i];
-                //printf("i %d pid %d pt %d \n", i, pid, p->_ana.ppt[i]);
                 if (VB_PID ==  24){ // W+
                     if (il_part == 9999 && pid== 12) il_part=i; // nu
                     if (il_anti == 9999 && pid==-11) il_anti=i; // e+
@@ -340,7 +338,6 @@ class TupleMaker {
                 }
                 if (il_part!=9999 && il_anti!=9999) break;
             }
-            //printf("VB_PID %d iVB %d il_part %d il_anti %d npart %d \n", VB_PID, iVB, il_part, il_anti, p->_ana.npart );
             // set kinematics
             VB.SetPxPyPzE(
                     p->_ana.ppx[iVB],
@@ -366,15 +363,13 @@ class TupleMaker {
         void CreateKinFile(){
             this_pmcs = new Output(this_pmcs_path);
             this_kin = new TKinFile(this_kin_path,"RECREATE");
-            size_t Nevents = 2000; this_pmcs->GetEntries();
+            size_t Nevents = this_pmcs->GetEntries();
+            //Nevents = 2000;
             for (size_t ievt = 0; ievt < Nevents; ievt++){
                 printEvent(ievt,Nevents);
                 this_pmcs -> GetEntry(ievt);
                 TLorentzVector VB,l_part,l_anti;
                 load_VBleplep(this_pmcs, VB, l_part, l_anti );
-                // VB.Print();
-                // l_part.Print();
-                // l_anti.Print();
                 this_kin -> Fill(VB, l_part, l_anti, this_pmcs->_ana.evwt[0] );
             }
             this_kin->Save();
@@ -393,9 +388,7 @@ class TupleMaker {
             // loop old add weight
             int ientry=0;
             int Nevents = this_pmcs->GetEntries();
-            Nevents = 2000;
-            //new_kin->histND->ComputeIntegral();
-            //new_kin->histND->Dump();
+            //Nevents = 2000;
             for ( int i=0 ; i< Nevents; i++){
                 this_pmcs->GetEntry(i);
                 evn = i+1;
@@ -404,9 +397,10 @@ class TupleMaker {
                 TLorentzVector VB,l_part,l_anti;
                 load_VBleplep(this_pmcs, VB, l_part, l_anti );
                 // get new weight
-                double new_wt = new_kin->GetNewWeight(new_kin, VB, l_part, l_anti);
+                double new_wt = this_kin->GetNewWeight(new_kin, VB, l_part, l_anti);
                 // fill new weight
-                new_pmcs->NewEventNewWeight( this_pmcs, new_wt * this_pmcs->_ana.evwt[0] ); new_pmcs->AddParticles( this_pmcs );
+                new_pmcs->NewEventNewWeight( this_pmcs, new_wt * this_pmcs->_ana.evwt[0] );
+                new_pmcs->AddParticles( this_pmcs );
                 new_pmcs->Fill();
             }
             // save
