@@ -37,15 +37,19 @@ class THnD_KIN : public THnD {
 
         void Fill();
         double GetBinContent();
+        double ComputeIntegral();
         double Integral();
         void updateBin();
         bool isOutlayer();
 
+        void CopyPointers(const THnD_KIN* from);
+
         // value helpers
         int      bin             ; // current bin index
         double   x[KDIM]         ; // array of current values (needed for passing to THn)
-        Double_t *weight_ptr     ; //[fNdimensions] pointer to event weight (dimmension is a hack)
-        Double_t *val_ptrs[KDIM] ; //[fNdimensions] array of pointers to variables (dimension is a hack)
+        Double_t *weight_ptr     ; //! pointer to event weight (need to copy it by hand)
+        Double_t *val_ptrs[KDIM] ; //! array of pointers to variables (need to copy it by hand)
+
 
         // initial definitions
         static const int    kin_dim       ; ///< Number of variables
@@ -86,6 +90,7 @@ class TKinFile {
         THnD_KIN * normND;
 
         double ebeam;
+        bool use4Dhist;
         // tree var
         double weight;
         double qt;

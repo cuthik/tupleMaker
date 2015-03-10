@@ -15,8 +15,10 @@
 ClassImp(THnD_KIN)
 
 const int THnD_KIN::kin_dim = KDIM;
-const int THnD_KIN::kin_nbins[] = {16,15,10,20} ; // {4,4,4,4};
-const char * THnD_KIN::var_name_1 = "q_{T}"        ; const double THnD_KIN::bin_edges_1[] =  {0   , 3   , 6   , 9   , 12  , 15 , 18 , 21 , 24 , 27 , 30 , 35 , 40 , 50 , 100, 200, 1000 } ;// {0.,5.,10.,100.,7000.}   ;
+const int THnD_KIN::kin_nbins[] = {43,15,10,20} ; // {4,4,4,4};
+//const char * THnD_KIN::var_name_1 = "q_{T}"        ; const double THnD_KIN::bin_edges_1[] =  {0.5 , 3   , 6   , 9   , 12  , 15 , 18 , 21 , 24 , 27 , 30 , 35 , 40 , 50 , 100, 200, 1000 } ;// {0.,5.,10.,100.,7000.}   ;
+const char * THnD_KIN::var_name_1 = "q_{T}"        ; const double THnD_KIN::bin_edges_1[] =  { 0.5    , 1.09   , 1.68   , 2.27   , 2.86   , 3.45   , 4.04   , 4.63   , 5.22   , 5.81   , 6.4    , 6.99   , 7.58   , 8.17   , 8.76   , 9.35   , 9.94   , 10.53  , 11.12  , 11.71  , 12.3   , 12.89  , 13.48  , 14.07  , 14.66  , 15.25  , 15.84  , 16.43  , 17.02  , 17.61  , 18.2   , 18.79  , 19.38  , 19.97  , 20.56  , 21.15  , 21.74  , 22.33  , 22.92  , 23.51  , 24.1   , 24.69  , 25.2   , 30.0 };
+
 const char * THnD_KIN::var_name_2 = "y"            ; const double THnD_KIN::bin_edges_2[] =  {0.  , 0.2 , 0.4 , 0.6 , 0.8 , 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 3.0, 5.0 }       ;// {-10.,-5.,0.,5.,10.}    ;
 const char * THnD_KIN::var_name_3 = "cos_theta_CS" ; const double THnD_KIN::bin_edges_3[] =  {-1.0, -0.8, -0.6, -0.4, -0.2, 0  , 0.2, 0.4, 0.6, 0.8, 1.0 }                                ;// {-1.,0.,1.}       ;
 const char * THnD_KIN::var_name_4 = "phi_CS"       ; const double THnD_KIN::bin_edges_4[] =  { -pi , -2.7, -2.4, -2.1, -1.8, -1.5, -1.2 , -0.9 , -0.6 , -0.3 , 0   , 0.3 , 0.6 , 0.9 , 1.2 , 1.5, 1.8, 2.1, 2.4, 2.7, pi}                                 ;// {-twopi,-pi,0.,pi,twopi} ;
@@ -67,11 +69,66 @@ bool THnD_KIN::isOutlayer(){ // underflow/overflow
 
 double THnD_KIN::GetBinContent(){
     updateBin();
-    if (isOutlayer()) return 0;
+    //if (isOutlayer()) return 0; // not used any more, too many events were zero
     return THnD::GetBinContent(bin);
 }
 
+
+Double_t THnD_KIN::ComputeIntegral() {
+   // Calculate the integral of the histogram
+   // Taken from THnBase and corrected
+
+   // delete old integral
+   if (fIntegralStatus != kNoInt) {
+      delete [] fIntegral;
+      fIntegralStatus = kNoInt;
+   }
+
+   // check number of bins
+   if (GetNbins() == 0) {
+      Error("ComputeIntegral", "The histogram must have at least one bin.");
+      return 0.;
+   }
+
+   // allocate integral array
+   fIntegral = new Double_t [GetNbins() + 1];
+   fIntegral[0] = 0.;
+
+   // fill integral array with contents of regular bins (non over/underflow)
+   Int_t* coord = new Int_t[fNdimensions];
+   Long64_t i = 0;
+   THnIter iter(this);
+   while ((i = iter.Next(coord)) >= 0) {
+      Double_t v = THnD::GetBinContent(i);
+      fIntegral[i + 1] = fIntegral[i] + v;
+   }
+   delete [] coord;
+
+   // check sum of weights
+   if (fIntegral[GetNbins()] == 0.) {
+      Error("ComputeIntegral", "No hits in bins (including over/underflow).");
+      delete [] fIntegral;
+      return 0.;
+   }
+
+   // normalize the integral array
+   for (Long64_t j = 0; j < GetNbins(); ++j)
+      fIntegral[j] = fIntegral[j] / fIntegral[GetNbins()];
+
+   // set status to valid
+   fIntegralStatus = kValidInt;
+   return fIntegral[GetNbins()];
+}
+
+
+
 double THnD_KIN::Integral(){
+    
+    // After som time I realize that the function from THnBase sucks so I
+    // copied the code a do my own integral.
+    if(fIntegralStatus == kValidInt) return fIntegral[fNdimensions];
+    return ComputeIntegral();
+    // you can follow if you are interested..
     // This is another very funny ROOT story:
     // The ComputeIntegral function will compute correctly everyting and than..
     // I don't know why is normalizing integral array. integral array is
@@ -92,6 +149,7 @@ double THnD_KIN::Integral(){
     // find first nonzero bin. Search code adapted from ComputeIntegral.
     //
     // compute integral normaly
+    // 
     //if(fIntegralStatus == kValidInt && fIntegral && fIntegral[0]) return fIntegral[0];
     if(fIntegralStatus != kValidInt) ComputeIntegral();
     if(fIntegralStatus != kValidInt) return 0;
@@ -129,45 +187,47 @@ void THnD_KIN::updateBin(){
     bin = GetBin(x);
 }
 
+void THnD_KIN::CopyPointers(const THnD_KIN * from){
+    this->weight_ptr = from->weight_ptr;
+    for (size_t i=0; i< fNdimensions;i++) this->val_ptrs[i] = from->val_ptrs[i];
+}
+
 
 
 
 
 TKinFile::TKinFile(TString name, TString opt){
+    TH1::SetDefaultSumw2(true);
     const char * c_opt=opt.Data();
     file = TFile::Open(name,opt);
     file->cd();
     ebeam = 1960; // GeV -- tevatron is default
     normND = 0;
     tree = 0;
+    use4Dhist = true;
     if ( !strcasecmp(c_opt,"READ") || !strcasecmp(c_opt,"CACHEREAD") ){
         histND = (THnD_KIN*)  file->Get("kin_hist");
-        //normND = (THnD_KIN*)  file->Get("norm_hist");
-        //tree   = (TTree*) file->Get("kin_tree");
-        //tree->SetBranchAddress("qt"       , &qt       );
-        //tree->SetBranchAddress("y"        , &y        );
-        //tree->SetBranchAddress("theta_CS" , &theta_CS );
-        //tree->SetBranchAddress("phi_CS"   , &phi_CS   );
+        hw     = (TH1D*) file->Get("weights");
+        h1     = (TH1D*) file->Get(THnD_KIN::var_name_1);
+        h2     = (TH1D*) file->Get(THnD_KIN::var_name_2);
+        h3     = (TH1D*) file->Get(THnD_KIN::var_name_3);
+        h4     = (TH1D*) file->Get(THnD_KIN::var_name_4);
     } else {
         histND = new THnD_KIN("kin_hist")  ;
-        //normND = new THnD_KIN("norm_hist") ;
-        //tree   = new TTree("kin_tree","kin_tree");
-        //tree->SetBranchAddress("qt/D"       , &qt       );
-        //tree->SetBranchAddress("y/D"        , &y        );
-        //tree->SetBranchAddress("theta_CS/D" , &theta_CS );
-        //tree->SetBranchAddress("phi_CS/D"   , &phi_CS   );
         hw = new TH1D ("weights" , "weights" , 100         , -1           , 10);
         h1 = new TH1D (THnD_KIN::var_name_1, THnD_KIN::var_name_1, THnD_KIN::kin_nbins[0], THnD_KIN::bin_edges_1 );
         h2 = new TH1D (THnD_KIN::var_name_2, THnD_KIN::var_name_2, THnD_KIN::kin_nbins[1], THnD_KIN::bin_edges_2 );
         h3 = new TH1D (THnD_KIN::var_name_3, THnD_KIN::var_name_3, THnD_KIN::kin_nbins[2], THnD_KIN::bin_edges_3 );
         h4 = new TH1D (THnD_KIN::var_name_4, THnD_KIN::var_name_4, THnD_KIN::kin_nbins[3], THnD_KIN::bin_edges_4 );
+
     }
     qt = y = cos_theta_CS = phi_CS = 0.;
-    histND->weight_ptr  = & weight       ;
-    histND->val_ptrs[0] = & qt           ;
-    histND->val_ptrs[1] = & y            ;
-    histND->val_ptrs[2] = & cos_theta_CS ;
-    histND->val_ptrs[3] = & phi_CS       ;
+    histND->weight_ptr  = & this->weight       ;
+    histND->val_ptrs[0] = & this->qt           ;
+    histND->val_ptrs[1] = & this->y            ;
+    histND->val_ptrs[2] = & this->cos_theta_CS ;
+    histND->val_ptrs[3] = & this->phi_CS       ;
+
 }
 
 TKinFile::~TKinFile(){
@@ -198,6 +258,7 @@ void TKinFile::Fill(const TLorentzVector &VB, const TLorentzVector &l1, const TL
 
 void TKinFile::normalizeKin(){
     normND = (THnD_KIN *) histND->Clone("norm");
+    normND->CopyPointers(histND);
     normND -> Scale(1./normND->Integral());
     return;
 }
@@ -208,7 +269,19 @@ double TKinFile::getValue(const double qt, const double y, const double cos_thet
     this->y            = y;
     this->cos_theta_CS = cos_theta_CS;
     this->phi_CS       = phi_CS;
-    return normND->GetBinContent();
+    if (use4Dhist) return normND->GetBinContent();
+    else {
+        double out = 1;
+        out *= h1 ->GetBinContent( h1 ->FindFixBin( qt            ));
+        out *= h2 ->GetBinContent( h2 ->FindFixBin( y             ));
+        out *= h3 ->GetBinContent( h3 ->FindFixBin( cos_theta_CS  ));
+        out *= h4 ->GetBinContent( h4 ->FindFixBin( phi_CS        ));
+        // out *= 1./h1->Integral();
+        // out *= 1./h2->Integral();
+        // out *= 1./h3->Integral();
+        // out *= 1./h4->Integral();
+        return out;
+    }
 }
 
 double TKinFile::GetNewWeight(TKinFile * new_kin, const TLorentzVector &VB, const TLorentzVector &l_part, const TLorentzVector &l_anti ){
