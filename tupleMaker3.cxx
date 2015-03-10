@@ -17,6 +17,7 @@
 
 #include "TFile.h"
 #include "TLorentzVector.h"
+#include "TStopwatch.h"
 #include "TMath.h"
 //#include "TString.h"
 
@@ -146,6 +147,9 @@ class TupleMaker {
         }
 
         void printEvent(double evn, double total=0){
+            if (evn==0){
+                swatch.Start();
+            }
             if( ! fmod( Log2(evn), 1 ) ) {
                 cout << "Processed event: ";
                 if (total !=0 ){
@@ -157,8 +161,18 @@ class TupleMaker {
                     cout << evn/total*100 ;
                     cout << "%  ";
                 } 
-                cout << setprecision(8) << setfill(' ') ;
+                cout << setprecision(6) << setfill(' ') << setw(10) ;
                 cout << (size_t) evn;
+                // time
+                double rtm = swatch.RealTime(); swatch.Continue();
+                double Hz = evn/rtm;
+                cout << "   time elapsed ";
+                cout << rtm << "s";
+                cout << " ( "<< Hz/1000 <<" kHz)";
+                if (total !=0 ){
+                    cout << "   remaining time ";
+                    cout << (total-evn)/Hz;
+                }
                 cout << endl;
                 //cout << "\r";
                 //cout.flush();
@@ -303,7 +317,7 @@ class TupleMaker {
             f_out=0;
         }
 
-        // KINEMATIC REWEIGHT PART
+        // KINEMATIC REWEIGHT PART;
         TString this_pmcs_path;
         TString this_kin_path;
         TString new_kin_path;
@@ -364,7 +378,7 @@ class TupleMaker {
             this_pmcs = new Output(this_pmcs_path);
             this_kin = new TKinFile(this_kin_path,"RECREATE");
             size_t Nevents = this_pmcs->GetEntries();
-            //Nevents = 2000;
+            Nevents = int(1e5);
             for (size_t ievt = 0; ievt < Nevents; ievt++){
                 printEvent(ievt,Nevents);
                 this_pmcs -> GetEntry(ievt);
@@ -385,10 +399,13 @@ class TupleMaker {
             this_kin = new TKinFile(this_kin_path ,"READ");
             new_kin  = new TKinFile(new_kin_path  ,"READ");
 
+            //this_kin -> use4Dhist = false;
+            //new_kin  -> use4Dhist = false;
+
             // loop old add weight
             int ientry=0;
             int Nevents = this_pmcs->GetEntries();
-            //Nevents = 2000;
+            Nevents = int(1e5);
             for ( int i=0 ; i< Nevents; i++){
                 this_pmcs->GetEntry(i);
                 evn = i+1;
@@ -398,6 +415,7 @@ class TupleMaker {
                 load_VBleplep(this_pmcs, VB, l_part, l_anti );
                 // get new weight
                 double new_wt = this_kin->GetNewWeight(new_kin, VB, l_part, l_anti);
+                //printf("this wt %f scale %f new wt %f\n", this_pmcs->_ana.evwt[0], new_wt  ,new_wt * this_pmcs->_ana.evwt[0] );
                 // fill new weight
                 new_pmcs->NewEventNewWeight( this_pmcs, new_wt * this_pmcs->_ana.evwt[0] );
                 new_pmcs->AddParticles( this_pmcs );
@@ -470,6 +488,7 @@ class TupleMaker {
         float px,py,pz,E;
 
 
+        TStopwatch swatch;
         bool debug;
         bool doConvertWeight;
         bool doReweighting;
