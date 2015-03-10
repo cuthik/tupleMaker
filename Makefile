@@ -13,7 +13,7 @@ CFLAGS = $(SPECIALFLAGS) -I- -I../ -I.
 CFLAGS = $(SPECIALFLAGS) -iquote -I../ -I. -IAiUtil/
 #LFLAGS = $(SPECIALFLAGS) -L../../lib/$(SRT_SUBDIR)/
 
-RCXX=$(CFLAGS) $(ROOTCFLAGS) -ggdb
+RCXX=$(CFLAGS) $(ROOTCFLAGS) -ggdb -fPIC
 ROOTCINT=rootcint
 
 #CC = KCC -n32 --exceptions --thread_safe -O $(OPTCOMP)
@@ -21,7 +21,7 @@ ROOTCINT=rootcint
 CC = g++ $(RCXX) $(OPTCOMP) 
 
 #all: tupleMaker tupleMaker2 tupleMaker3
-all: tupleMaker3 tupleMaker_DYRES makeAiProfile
+all: tupleMaker3 tupleMaker_DYRES makeAiProfile KinFile.so
 
 
 test: test.o Output.o
@@ -79,6 +79,9 @@ KinFileDict.cxx: KinFile.h KinFileLinkDef.h
 KinFileDict.o: KinFileDict.cxx
 	$(CC) -c $< -o $@
 
+KinFile.so: KinFile.o KinFileDict.o TLVUtils.o
+	$(CC) -shared -fPIC -o $@ $^
+
 clean:
 	\rm -f *.o
 	\rm -f *~
@@ -88,3 +91,4 @@ clean:
 	\rm -fr tupleMaker3
 	\rm -fr tupleMaker_DYRES
 	\rm -fr makeAiProfile
+	\rm -fr KinFileDict.*
