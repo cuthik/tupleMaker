@@ -378,7 +378,7 @@ class TupleMaker {
             this_pmcs = new Output(this_pmcs_path);
             this_kin = new TKinFile(this_kin_path,"RECREATE");
             size_t Nevents = this_pmcs->GetEntries();
-            Nevents = int(1e5);
+            //Nevents = int(1e5);
             for (size_t ievt = 0; ievt < Nevents; ievt++){
                 printEvent(ievt,Nevents);
                 this_pmcs -> GetEntry(ievt);
@@ -405,7 +405,7 @@ class TupleMaker {
             // loop old add weight
             int ientry=0;
             int Nevents = this_pmcs->GetEntries();
-            Nevents = int(1e5);
+            //Nevents = int(1e5);
             for ( int i=0 ; i< Nevents; i++){
                 this_pmcs->GetEntry(i);
                 evn = i+1;

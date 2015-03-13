@@ -135,18 +135,6 @@ class TupleMaker {
             // CREATE INPUT FOR PMCS
             // open input files
             cout << Form("Openning input file %s", hepfilename.Data()) << endl;
-            //FILE * hepfile;
-            //ifstream hepstream;
-            //bool useCFile = false;
-            //if (useCFile){
-                //hepfile = fopen(hepfilename.Data(),"r");
-                //if (hepfile==NULL){ perror ( "Opening failed: "); }
-            //} else { //use the ifstream
-                //hepstream.open(hepfilename.Data());
-                //if (!hepstream.is_open() || !hepstream.good()){ throw runtime_error(Form("Can not open file %s",hepfilename.Data()));}
-
-            //}
-                //throw runtime_error(Form("Can not open input file `%s`, error number is %i", hepfilename.Data(),errno)); } 
             if (doReweighting && weightfileNames.size()!=0 ) OpenWeightFiles();
 
 
@@ -159,41 +147,16 @@ class TupleMaker {
             // this loops over events
             int ientry=0;
             DyresNtuple ntup( hepfilename.Data() );
-            //while( ! finished_file ) {
             for (;ientry < ntup.GetEntries(); ientry++){
                 if (debug && ientry>130) break;
                 ClearEvent();
                 int rc=0;
-                // first line (event number and weight)
-                //if (useCFile){
-                //rc = fscanf(hepfile,"%i %f", &evn, &evt_wt);
-                //if (rc!=2) throw runtime_error("Event line not found.");
-                //} else { // use the ifstream
-                //hepstream >> evn >> evt_wt;
-                //if (!hepstream.good()) throw runtime_error("Event line not found.");
-                //}
                 ntup.GetEntry(ientry);
                 evn = ntup.Evtnum;
                 evt_wt = ntup.Evtwgt;
-
                 if( ! fmod( Log2(evn), 1 ) ) cout<<"Processed event: "<<evn<<endl;
-                //if( evn == 0 ) {
-                //finished_file = true;
-                //continue;
-                //} 
-
-                // second line (beam position)
-                //if (useCFile){
-                    //rc=fscanf(hepfile,"%f %f %f", &vx, &vy, &vz);
-                    //if (rc!=3) throw runtime_error("Vertex line not found.");
-                //} else { // use the ifstream
-                    //hepstream >> vx >> vy >> vz;
-                    //if (!hepstream.good()) throw runtime_error("Vertex line not found.");
-                //}
                 vx = vy = vz = 0.0;
-
                 // read weights
-
                 if (doReweighting){
                     if(doSavePartonInfo){
                         // load parton info
@@ -213,52 +176,23 @@ class TupleMaker {
                         ientry++;
                     }
                 }
-
                 output->NewEvent( evn, evt_wt, 0 ,
                                   vx, vy, vz,
                                   Q2, x1, x2, flav1, flav2,
                                   weight_PDF);
-
-
                 // loop particles
                 bool finished_particles=false;
                 //while (!finished_particles){
                 for ( int ipart =0; ipart < ntup.Nump; ipart++){
                     ClearParticle();
-
-                    // read isajet id
-                    //if (useCFile){
-                        //rc=fscanf(hepfile,"%i",&id);
-                        //if (rc!=1) throw runtime_error("Missing isajet id.");
-                    //} else { // use the ifstream
-                        //hepstream >> id;
-                        //if (!hepstream.good()) throw runtime_error("Missing isajet id.");
-                    //}
-
-                    //if(id==0){
-                        //finished_particles=true;
-                        //continue;
-                    //}
-
-                    // read kinematics
-                    //if (useCFile){
-                        //rc=fscanf(hepfile,"%f %f %f %f %i %i",&px,&py,&pz,&E,&origin,&udk);
-                        //if (rc!=6) throw runtime_error("Missing particle kinematics.");
-                    //} else { // use the ifstream
-                        //hepstream >> px >> py >> pz >> E >> origin >> udk;
-                        //if (!hepstream.good()) throw runtime_error("Missing particle kinematics.");
-                    //}
-
                     id = ntup.Pid[ipart];
                     px = ntup.Ppx[ipart];
                     py = ntup.Ppy[ipart];
                     pz = ntup.Ppz[ipart];
                     E  = ntup.Ppe[ipart];
                     origin = ( ipart==0 ? 0 : 1); // only boson is unstable
-
                     output->AddParticlePDGID( id, px,py,pz,E,origin);
                 }
-
                 output->Fill();
                 if (debug && ! fmod(Log2(evn),1) ){
                         cout<<"debug event dump: "                          ;
@@ -276,13 +210,6 @@ class TupleMaker {
 
                 }
             }
-
-            //close input files
-                // if (useCFile){
-                //     fclose(hepfile);
-                // } else { // use the ifstream
-                //     hepstream.close();
-                // }
             if (doReweighting && weightfileNames.size()!=0 ) CloseWeightFiles();
         }
 
@@ -318,7 +245,6 @@ class TupleMaker {
         // particle related
         int id,origin,udk;
         float px,py,pz,E;
-
 
         bool debug;
         bool doConvertWeight;

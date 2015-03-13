@@ -49,7 +49,7 @@ class AiMaker{
 
 void help(){
     cout << "USAGE:" << endl;
-    cout << " makeAiProfile ebeam input.root" << endl;
+    cout << " makeAiProfile ebeam TODO_process input.root" << endl;
     cout << " Description : create AiMoments.root with angular profiles from RESBOS tree. Energy of beam is in GeV." << endl<<endl<<endl;
 }
 
@@ -64,10 +64,11 @@ int main(int argc, const char * argv[]){
             return 0;
         }
 
-        AiMaker ai;
-        ai.ebeam     = atoi(argv[1]);
-        ai.f_path_in = argv[2];
-        ai.MakeProfile();
+        AiMaker aim;
+        aim.ebeam     = atoi(argv[1]);
+        //TODO:aim.process = argv[2];
+        aim.f_path_in = argv[2];
+        aim.MakeProfile();
     }
 
 

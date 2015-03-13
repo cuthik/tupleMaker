@@ -17,7 +17,7 @@
 
 // #define UseHBOOK 1
 
-class DyresNtuple{
+class GeneNtuple{
     public :
         ~DyresNtuple(){ if(hfile && hfile->IsOpen()) hfile->Close(); };
         DyresNtuple(TString path="TestJob/dyres.hbook", int lrecl=1024)

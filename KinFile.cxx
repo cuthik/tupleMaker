@@ -276,10 +276,10 @@ double TKinFile::getValue(const double qt, const double y, const double cos_thet
         out *= h2 ->GetBinContent( h2 ->FindFixBin( y             ));
         out *= h3 ->GetBinContent( h3 ->FindFixBin( cos_theta_CS  ));
         out *= h4 ->GetBinContent( h4 ->FindFixBin( phi_CS        ));
-        // out *= 1./h1->Integral();
-        // out *= 1./h2->Integral();
-        // out *= 1./h3->Integral();
-        // out *= 1./h4->Integral();
+        out *= 1./h1->Integral();
+        out *= 1./h2->Integral();
+        out *= 1./h3->Integral();
+        out *= 1./h4->Integral();
         return out;
     }
 }
