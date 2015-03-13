@@ -22,6 +22,8 @@
 
 #include "TLVUtils.h"
 
+class TBrowser;
+
 using std::vector;
 
 const double twopi = 2*TMath::Pi();
@@ -35,6 +37,8 @@ class THnD_KIN : public THnD {
         THnD_KIN();
         THnD_KIN(TString name, TString title ="");
 
+        void Browse(TBrowser *b);
+        void Print();
         void Fill();
         double GetBinContent();
         double ComputeIntegral();

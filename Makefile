@@ -13,7 +13,7 @@ CFLAGS = $(SPECIALFLAGS) -I- -I../ -I.
 CFLAGS = $(SPECIALFLAGS) -iquote -I../ -I. -IAiUtil/
 #LFLAGS = $(SPECIALFLAGS) -L../../lib/$(SRT_SUBDIR)/
 
-RCXX=$(CFLAGS) $(ROOTCFLAGS) -ggdb
+RCXX=$(CFLAGS) $(ROOTCFLAGS) -ggdb -fPIC
 ROOTCINT=rootcint
 
 #CC = KCC -n32 --exceptions --thread_safe -O $(OPTCOMP)
@@ -21,13 +21,17 @@ ROOTCINT=rootcint
 CC = g++ $(RCXX) $(OPTCOMP) 
 
 #all: tupleMaker tupleMaker2 tupleMaker3
-all: tupleMaker3 tupleMaker_DYRES makeAiProfile
+#all: tupleMaker3 tupleMaker_DYRES makeAiProfile KinFile.so
+all: tupleMaker3 tupleMaker_DYRES tupleMaker_AI_RESBOS
 
 
 test: test.o Output.o
 	$(CC) test.o Output.o $(LIBS) -o test -lEG
 
 makeAiProfile: makeAiProfile.o AiMoments.o TLVUtils.o
+	$(CC) $^ $(LIBS) -o $@ -lEG
+
+tupleMaker_AI_RESBOS: tupleMaker_AI_RESBOS.o AiMoments.o TLVUtils.o
 	$(CC) $^ $(LIBS) -o $@ -lEG
 
 tupleMaker_DYRES: tupleMaker_DYRES.o Output.o
@@ -70,6 +74,9 @@ tupleMaker_DYRES.o: tupleMaker_DYRES.cxx
 makeAiProfile.o: makeAiProfile.cpp AiUtil/AiMoments.h ReadResbosROOT.C
 	$(CC)  -c $< -o $@
 
+tupleMaker_AI_RESBOS.o: tupleMaker_AI_RESBOS.cpp AiUtil/AiMoments.h ReadResbosROOT.C
+	$(CC)  -c $< -o $@
+
 test.o: test.cxx
 	$(CC) -c test.cxx -o test.o
 
@@ -78,6 +85,9 @@ KinFileDict.cxx: KinFile.h KinFileLinkDef.h
 
 KinFileDict.o: KinFileDict.cxx
 	$(CC) -c $< -o $@
+
+KinFile.so: KinFile.o KinFileDict.o TLVUtils.o
+	$(CC) -shared -fPIC -o $@ $^
 
 clean:
 	\rm -f *.o
@@ -88,3 +98,4 @@ clean:
 	\rm -fr tupleMaker3
 	\rm -fr tupleMaker_DYRES
 	\rm -fr makeAiProfile
+	\rm -fr KinFileDict.*

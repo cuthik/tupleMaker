@@ -54,6 +54,14 @@ THnD_KIN::THnD_KIN(TString name, TString title) :
     weight_ptr = 0;
 }
 
+void THnD_KIN::Browse(TBrowser *b){
+    THnD::Browse(b);
+}
+
+void THnD_KIN::Print(){
+    THnD::Print();
+}
+
 void THnD_KIN::Fill(){
     updateBin();
     THnD::Fill(x,*weight_ptr);
