@@ -137,7 +137,7 @@ class TupleMaker {
                 if (weightfileNames.size() == 0) throw runtime_error("Missing weight file names.");
                 for (size_t iw=0; iw<weight_trees.size(); iw++){
                     weight_trees[iw]->GetEntry(ientry);
-                    if (weight_evtn[iw] != evn) throw runtime_error( Form("Bad order of events: pmcs evt %i vs weight evt %i (of wgt %i)",evn,weight_evtn[iw],iw));
+                    if (weight_evtn[iw] != evn) throw runtime_error( Form("Bad order of events: pmcs evt %d vs weight evt %i (of wgt %lu)",evn,weight_evtn[iw],iw));
                     double store_weight = weight_val[iw];
                     if(doWeightRatio) store_weight /= evt_wt;
                     weight_PDF.push_back(store_weight);

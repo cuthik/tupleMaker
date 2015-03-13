@@ -21,13 +21,17 @@ ROOTCINT=rootcint
 CC = g++ $(RCXX) $(OPTCOMP) 
 
 #all: tupleMaker tupleMaker2 tupleMaker3
-all: tupleMaker3 tupleMaker_DYRES makeAiProfile KinFile.so
+#all: tupleMaker3 tupleMaker_DYRES makeAiProfile KinFile.so
+all: tupleMaker3 tupleMaker_DYRES tupleMaker_AI_RESBOS
 
 
 test: test.o Output.o
 	$(CC) test.o Output.o $(LIBS) -o test -lEG
 
 makeAiProfile: makeAiProfile.o AiMoments.o TLVUtils.o
+	$(CC) $^ $(LIBS) -o $@ -lEG
+
+tupleMaker_AI_RESBOS: tupleMaker_AI_RESBOS.o AiMoments.o TLVUtils.o
 	$(CC) $^ $(LIBS) -o $@ -lEG
 
 tupleMaker_DYRES: tupleMaker_DYRES.o Output.o
@@ -68,6 +72,9 @@ tupleMaker_DYRES.o: tupleMaker_DYRES.cxx
 	$(CC) -c tupleMaker_DYRES.cxx -o tupleMaker_DYRES.o
 
 makeAiProfile.o: makeAiProfile.cpp AiUtil/AiMoments.h ReadResbosROOT.C
+	$(CC)  -c $< -o $@
+
+tupleMaker_AI_RESBOS.o: tupleMaker_AI_RESBOS.cpp AiUtil/AiMoments.h ReadResbosROOT.C
 	$(CC)  -c $< -o $@
 
 test.o: test.cxx
