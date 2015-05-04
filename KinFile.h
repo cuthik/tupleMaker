@@ -31,6 +31,8 @@ const double pi = TMath::Pi();
 
 #define KDIM 4
 
+/// @todo: interpolation weights ?
+
 class THnD_KIN : public THnD {
     public:
         ~THnD_KIN();

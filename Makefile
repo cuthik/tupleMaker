@@ -10,7 +10,7 @@ OPTCOMP = $(shell root-config --cflags)
 SPECIALFLAGS= --exceptions -D__USE_PDFS_RESBOS__ -D__USE_PDFS__
 
 CFLAGS = $(SPECIALFLAGS) -I- -I../ -I.
-CFLAGS = $(SPECIALFLAGS) -iquote -I../ -I. -IAiUtil/
+CFLAGS = $(SPECIALFLAGS) -iquote -I../ -I. -IAiUtilNEW/
 #LFLAGS = $(SPECIALFLAGS) -L../../lib/$(SRT_SUBDIR)/
 
 RCXX=$(CFLAGS) $(ROOTCFLAGS) -ggdb -fPIC
@@ -22,7 +22,9 @@ CC = g++ $(RCXX) $(OPTCOMP)
 
 #all: tupleMaker tupleMaker2 tupleMaker3
 #all: tupleMaker3 tupleMaker_DYRES makeAiProfile KinFile.so
-all: tupleMaker3 tupleMaker_DYRES tupleMaker_AI_RESBOS
+all: tupleMaker3 tupleMaker_AI_RESBOS plot_fast
+
+
 
 
 test: test.o Output.o
@@ -45,6 +47,12 @@ tupleMaker2: tupleMaker2.o Output.o
 
 tupleMaker: tupleMaker.o Output.o
 	$(CC) tupleMaker.o Output.o $(LIBS) -o tupleMaker -lEG
+
+plot_fast: plot_fast.o TLVUtils.o
+	$(CC) $^ $(LIBS) -o $@ -lEG
+
+grid_check: grid_check.o
+	$(CC) $^ $(LIBS) -o $@ -lEG
 
 
 KinFile.o: KinFile.cxx KinFile.h 
@@ -74,7 +82,13 @@ tupleMaker_DYRES.o: tupleMaker_DYRES.cxx
 makeAiProfile.o: makeAiProfile.cpp AiUtil/AiMoments.h ReadResbosROOT.C
 	$(CC)  -c $< -o $@
 
-tupleMaker_AI_RESBOS.o: tupleMaker_AI_RESBOS.cpp AiUtil/AiMoments.h ReadResbosROOT.C
+tupleMaker_AI_RESBOS.o: tupleMaker_AI_RESBOS.cpp AiUtil/AiMoments.h ReadResbosROOT.C HistogramsVB.h MWQuickSim.h
+	$(CC)  -c $< -o $@
+
+plot_fast.o: plot_fast.C  ReadResbosROOT.C
+	$(CC)  -c $< -o $@
+
+grid_check.o: grid_check.C
 	$(CC)  -c $< -o $@
 
 test.o: test.cxx

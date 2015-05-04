@@ -415,7 +415,6 @@ class TupleMaker {
                 load_VBleplep(this_pmcs, VB, l_part, l_anti );
                 // get new weight
                 double new_wt = this_kin->GetNewWeight(new_kin, VB, l_part, l_anti);
-                //printf("this wt %f scale %f new wt %f\n", this_pmcs->_ana.evwt[0], new_wt  ,new_wt * this_pmcs->_ana.evwt[0] );
                 // fill new weight
                 new_pmcs->NewEventNewWeight( this_pmcs, new_wt * this_pmcs->_ana.evwt[0] );
                 new_pmcs->AddParticles( this_pmcs );

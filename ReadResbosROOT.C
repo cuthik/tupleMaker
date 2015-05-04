@@ -12,14 +12,18 @@
  */
 
 #include "TString.h"
+#include "TRegexp.h"
 #include "TFile.h"
 #include "TH1D.h"
 #include "TTree.h"
 #include "TLorentzVector.h"
 
 #include <vector>
+#include <stdexcept>
+#include <fstream>
 
 using std::vector;
+using std::runtime_error;
 
 
 class ResbosRootNtuple{
@@ -29,17 +33,24 @@ class ResbosRootNtuple{
             if(!vec_wgt) delete vec_wgt;
         };
         ResbosRootNtuple(TString path="TestJob/resbos.root", TString options = "READ"){
-            ResetVars();
             orig_tree = 0;
             weight_trees = 0;
+            wgt_mean      = -999. ;
             if (options.CompareTo("WEIGHT",TString::kIgnoreCase)==0){
                 hfile = TFile::Open(path.Data(),"READ");
-                printf(" weight constructor\n");
+                if(!hfile){
+                    TString tmp =  "Can not open file: "; tmp+=path;
+                    throw runtime_error(tmp.Data());
+                }
                 tree = (TTree *) hfile->Get("h10");
                 tree -> SetBranchAddress("WTXX"  , & wgt   );
                 tree -> SetBranchStatus("*",1);
             } else if (options.CompareTo("READ",TString::kIgnoreCase)==0){
                 hfile = TFile::Open(path.Data(),"READ");
+                if(!hfile){
+                    TString tmp =  "Can not open file: "; tmp+=path;
+                    throw runtime_error(tmp.Data());
+                }
                 tree = (TTree *) hfile->Get("h10");
                 tree -> SetBranchAddress("Px_el" , & l1_Px );
                 tree -> SetBranchAddress("Py_el" , & l1_Py );
@@ -57,12 +68,13 @@ class ResbosRootNtuple{
                 tree -> SetBranchStatus("*",1);
                 // make correct weight => mean of weights should be equal to 1
                 tree->Draw("WT00");
-                tree->GetHistogram()->SetDirectory(0);
+                //tree->GetHistogram()->SetDirectory(0);
                 wgt_mean = tree->GetHistogram()->GetMean();
             } else if (options.CompareTo("RECREATE",TString::kIgnoreCase)==0){
                 hfile = TFile::Open(path.Data(),"RECREATE");
                 tree = (TTree*) new TTree("h10", "h10+weights");
             }
+            ResetVars();
         }
 
         Long64_t GetEntries() { return tree->GetEntriesFast(); }
@@ -82,10 +94,9 @@ class ResbosRootNtuple{
         }
 
         Long64_t GetConnectedEntry(Long64_t ievt=0) {
-            Long64_t a = orig_tree->tree->GetEntry(ievt);
-            for (size_t i=0; i<weight_trees->size(); i++){
-                Long64_t b = weight_trees->at(i)->tree->GetEntry(ievt);
-                printf("entry a %Lu b %Lu\n",a,b);
+            Long64_t a = orig_tree ? orig_tree->GetEntry(ievt) : 0;
+            if(weight_trees) for (size_t i=0; i<weight_trees->size(); i++){
+                Long64_t b = weight_trees->at(i)->GetEntry(ievt);
             }
             return  a;
         }
@@ -105,39 +116,70 @@ class ResbosRootNtuple{
             VB_E  = -999. ;
             wgt   = -999. ;
 
-            wgt_mean      = -999. ;
             wgt_corrected = -999. ;
 
-            type1 = -13;
-            type2 =  13;
+            TString s_infodump = "";
+            if (!s_infodump.Length()) s_infodump = GetStringFromFile("config_dump.txt");
+            if (!s_infodump.Length()) s_infodump =  hfile->Get("ConfigurationDump") ? ((TObjString*) hfile->Get("ConfigurationDump") )->GetString() : "";
 
-            ebeam    = 3.5e3;          // GeV
+            typeVB = GetValParameterInt(s_infodump,"V_pid");  //  24 -24  23
+            type1  = GetValParameterInt(s_infodump,"el_pid"); // -13  13  13
+            type2  = GetValParameterInt(s_infodump,"nu_pid"); //  14 -14 -13
+
+            ebeam    = GetValParameterInt(s_infodump,"ebeam"); // 3.5e3;          // GeV
             kMu_mass = 105.6583715e-3; // GeV
             kEl_mass = 510.998928e-6;  // GeV
+            kNu_mass = 0.;
+        }
+
+        double GetMassFromPDG(int pdg){
+            switch(abs(pdg)){
+                case 11: return kEl_mass; break;
+                case 13: return kMu_mass; break;
+                default: return kNu_mass;
+            }
+            return kNu_mass;
         }
 
         void GetLorentzVector(){
-            v_l1.SetXYZM( l1_Px , l1_Py , l1_Pz , kMu_mass);
-            v_l2.SetXYZM( l2_Px , l2_Py , l2_Pz , kMu_mass);
+            v_VB.SetXYZT( VB_Px , VB_Py , VB_Pz , VB_E);
+            v_l1.SetXYZM( l1_Px , l1_Py , l1_Pz , GetMassFromPDG(type1));
+            v_l2.SetXYZM( l2_Px , l2_Py , l2_Pz , GetMassFromPDG(type2));
+
+            // -- check if we take correct kinematics --
+            // double diff1 = ( (v_l1+v_l2).Px() - v_VB.Px() ) / v_VB.Px() ;
+            // double diff2 = ( (v_l1+v_l2).Py() - v_VB.Py() ) / v_VB.Py() ;
+            // double diff3 = ( (v_l1+v_l2).Pz() - v_VB.Pz() ) / v_VB.Pz() ;
+            // double diff4 = ( (v_l1+v_l2).M () - v_VB.M () ) / v_VB.M () ;
+            // if ( fabs(diff1)>1e-2 || 
+            //      fabs(diff2)>1e-2 ||
+            //      fabs(diff3)>1e-2 ||
+            //      fabs(diff4)>1e-2 
+            //    )
+            //     printf ( " kin rel diff:  momentum % e % e % e   Mass % e \n", 
+            //             diff1,diff2,diff3,diff4
+            //            );
         }
 
         void ConnectTree(ResbosRootNtuple * _orig_tree){
             // set pointer
             orig_tree=_orig_tree;
             // set brances
-            tree -> Branch("Px_el" , & orig_tree->l1_Px );
-            tree -> Branch("Py_el" , & orig_tree->l1_Py );
-            tree -> Branch("Pz_el" , & orig_tree->l1_Pz );
-            tree -> Branch("E_el"  , & orig_tree->l1_E  );
-            tree -> Branch("Px_nu" , & orig_tree->l2_Px );
-            tree -> Branch("Py_nu" , & orig_tree->l2_Py );
-            tree -> Branch("Pz_nu" , & orig_tree->l2_Pz );
-            tree -> Branch("E_nu"  , & orig_tree->l2_E  );
-            tree -> Branch("Px_V"  , & orig_tree->VB_Px );
-            tree -> Branch("Py_V"  , & orig_tree->VB_Py );
-            tree -> Branch("Pz_V"  , & orig_tree->VB_Pz );
-            tree -> Branch("E_V"   , & orig_tree->VB_E  );
-            tree -> Branch("WT00"  , & orig_tree->wgt   );
+            if (hfile->IsWritable() ) {
+                tree -> Branch("Px_el" , & orig_tree->l1_Px );
+                tree -> Branch("Py_el" , & orig_tree->l1_Py );
+                tree -> Branch("Pz_el" , & orig_tree->l1_Pz );
+                tree -> Branch("E_el"  , & orig_tree->l1_E  );
+                tree -> Branch("Px_nu" , & orig_tree->l2_Px );
+                tree -> Branch("Py_nu" , & orig_tree->l2_Py );
+                tree -> Branch("Pz_nu" , & orig_tree->l2_Pz );
+                tree -> Branch("E_nu"  , & orig_tree->l2_E  );
+                tree -> Branch("Px_V"  , & orig_tree->VB_Px );
+                tree -> Branch("Py_V"  , & orig_tree->VB_Py );
+                tree -> Branch("Pz_V"  , & orig_tree->VB_Pz );
+                tree -> Branch("E_V"   , & orig_tree->VB_E  );
+                tree -> Branch("WT00"  , & orig_tree->wgt   );
+            }
         }
 
         void ConnectWeights(vector<ResbosRootNtuple*> * _wgt_trees){
@@ -145,7 +187,9 @@ class ResbosRootNtuple{
             weight_trees = _wgt_trees;
             vec_wgt = new vector<float>();
             // add weight branch
-            tree -> Branch("WTXX" , "vector<float>" , & vec_wgt   );
+            if (hfile->IsWritable() ) {
+                tree -> Branch("WTXX" , "vector<float>" , & vec_wgt   );
+            }
         }
 
         void UpdateWeights(){
@@ -162,13 +206,12 @@ class ResbosRootNtuple{
 
         void Save(){
             hfile->cd();
-            printf(" execute save\n");
             tree->Write();
-            printf(" end save\n");
             hfile->Write();
             hfile->Close();
         }
 
+        // data members
         TTree * tree;
         TFile * hfile;
 
@@ -187,20 +230,65 @@ class ResbosRootNtuple{
         Float_t wgt   ;
         vector<float> *vec_wgt;
 
+        int typeVB;
         int type1;
         int type2;
         Float_t ebeam;
         Float_t kMu_mass;
         Float_t kEl_mass;
+        Float_t kNu_mass;
         Float_t wgt_mean   ;
         Float_t wgt_corrected   ;
+        TLorentzVector v_VB;
         TLorentzVector v_l1;
         TLorentzVector v_l2;
 
         // reference pointers
         ResbosRootNtuple * orig_tree;
         vector<ResbosRootNtuple*> * weight_trees;
+
+        // static functions
+        static TString GetStringFromFile(TString file_path);
+        static TString GetValParameterTString (TString config_dump, TString par_name);
+        static int     GetValParameterInt     (TString config_dump, TString par_name);
 };
+
+TString ResbosRootNtuple::GetStringFromFile(TString file_path){
+    TString output = "";
+    std::ifstream ifs;
+    ifs.open (file_path.Data(), std::ifstream::in);
+    output.ReadFile(ifs);
+    ifs.close();
+    if(output.BeginsWith("root")){
+        output="";
+        TFile *f = TFile::Open(file_path,"READ"); // try to open it, maybe it's root file
+        TObjString * sobj = (TObjString*) f->Get("ConfigurationDump");
+        if(sobj) output = sobj->GetString();
+    }
+    return output;
+}
+
+// template<class T>
+// T ResbosRootNtuple::GetValParameter<T>(TString config_dump, TString par_name){
+//     return T();
+// }
+
+TString ResbosRootNtuple::GetValParameterTString(TString config_dump, TString par_name){
+    TRegexp exp = par_name+":.*";
+    TString line  =  config_dump(exp);
+    exp = par_name+": *";
+    TString remove = line(exp);
+    return line.ReplaceAll(remove,"");
+}
+
+int ResbosRootNtuple::GetValParameterInt(TString config_dump, TString par_name){
+    TString str  = GetValParameterTString(config_dump,par_name);
+    return str.Atoi();
+}
+
+
+
+
 
 /**
  * The description of function.
