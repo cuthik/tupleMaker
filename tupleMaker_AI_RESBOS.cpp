@@ -31,6 +31,7 @@ class TupleMaker_min{
         void MakeProfile(){
             ResbosRootNtuple ntup(input_fname);
             vector<AiMoments*> ai_files;
+            vector<AiMoments*> ai_files_poswgt;
             vector<ResbosRootNtuple*> weights_trees;
             // init ai file, if there are some weights then init ai files and init weights
             size_t Nwgts = weights_fname.size() ? weights_fname.size() : 1;
@@ -41,9 +42,12 @@ class TupleMaker_min{
                     weights_trees.push_back( new ResbosRootNtuple (weights_fname[i_wgts].Data(), "WEIGHT"));
                     ai_outName+="_"; ai_outName+= (int) i_wgts;
                 }
-                ai_outName+=".root";
-                ai_files.push_back(new AiMoments());
-                ai_files[i_wgts]->Initialize(ai_outName.Data());
+                //ai_outName+=".root";
+                ai_files.push_back(new AiMoments(ai_outName.Data()));
+                ai_files[i_wgts]->Initialize();
+                ai_outName.ReplaceAll("AiMoments","AiMoments_poswgt");
+                ai_files_poswgt.push_back(new AiMoments(ai_outName.Data()));
+                ai_files_poswgt[i_wgts]->Initialize();
             }
             if (weights_fname.size()){
                 ntup.ConnectWeights(&weights_trees);
@@ -60,7 +64,6 @@ class TupleMaker_min{
                     if (weights_fname.size()){
                         weight*=weights_trees[i_wgts]->wgt/ntup.wgt;
                     }
-                    if (weight < 0) continue;
                     //if (fabs(weight)>10) printf(" weight % e   ratio % e", weight , weights_trees[i_wgts]->wgt/ntup.wgt);
                     //if ( fabs(fabs(ntup.v_VB.Rapidity())-3) > 0.2 ) continue;
                     ai_files[i_wgts]->Execute(
@@ -68,12 +71,22 @@ class TupleMaker_min{
                             ntup.v_l2.Pt(), ntup.v_l2.Eta(), ntup.v_l2.Phi(), ntup.v_l2.M(), ntup.type2,
                             ntup.ebeam, weight
                             );
+                    if (weight < 0) continue;
+                    ai_files_poswgt[i_wgts]->Execute(
+                            ntup.v_l1.Pt(), ntup.v_l1.Eta(), ntup.v_l1.Phi(), ntup.v_l1.M(), ntup.type1,
+                            ntup.v_l2.Pt(), ntup.v_l2.Eta(), ntup.v_l2.Phi(), ntup.v_l2.M(), ntup.type2,
+                            ntup.ebeam, weight
+                            );
                 }
             }
             printEvent(Nevents,Nevents);
+            TString fname  = "";
             for (size_t i_wgts=0; i_wgts<ai_files.size();i_wgts++){
-                TString fname  = ai_files[i_wgts]->GetFileName();
+                fname  = ai_files[i_wgts]->GetFileName();
                 ai_files[i_wgts]->Finalize();
+                DumpInfoToFile( fname.Data() );
+                fname  = ai_files_poswgt[i_wgts]->GetFileName();
+                ai_files_poswgt[i_wgts]->Finalize();
                 DumpInfoToFile( fname.Data() );
             }
             DumpInfoToFile(input_fname.Data());
