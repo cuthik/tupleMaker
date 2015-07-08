@@ -13,7 +13,7 @@ CFLAGS = $(SPECIALFLAGS) -I- -I../ -I.
 CFLAGS = $(SPECIALFLAGS) -iquote -I../ -I. -IAiUtil/
 #LFLAGS = $(SPECIALFLAGS) -L../../lib/$(SRT_SUBDIR)/
 
-RCXX=$(CFLAGS) $(ROOTCFLAGS) -ggdb -fPIC
+RCXX=$(CFLAGS) $(ROOTCFLAGS) -ggdb -fPIC -std=c++11
 ROOTCINT=rootcint
 
 #CC = KCC -n32 --exceptions --thread_safe -O $(OPTCOMP)
@@ -64,7 +64,7 @@ Output.o: Output.cpp Output.hpp
 TLVUtils.o: AiUtil/TLVUtils.cxx AiUtil/TLVUtils.h
 	$(CC) -c $< -o $@
 
-AiMoments.o: AiUtil/AiMoments.cxx AiUtil/AiMoments.h AiUtil/TLVUtils.h
+AiMoments.o: AiUtil/AiMoments.cxx AiUtil/AiMoments.h AiUtil/TLVUtils.h HistoSvc.C
 	$(CC) -c $< -o $@
 
 tupleMaker.o: tupleMaker.cpp
